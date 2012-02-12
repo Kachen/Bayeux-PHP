@@ -1,6 +1,6 @@
 <?php
 
-namespace Bayeux\Api\Bayeux;
+namespace Bayeux\Api;
 
 /**
  * <p>A transport abstract the details of the protocol used to send

@@ -2,7 +2,9 @@
 
 namespace Bayeux\Api\Server;
 
-use Bayeux\Api\Bayeux\Bayeux;
+use Bayeux\Api\Server\BayeuxServer\BayeuxServerListener;
+use Bayeux\Api\Server\BayeuxServer\Extension;
+use Bayeux\Api\Bayeux;
 
 /* ------------------------------------------------------------ */
 /**

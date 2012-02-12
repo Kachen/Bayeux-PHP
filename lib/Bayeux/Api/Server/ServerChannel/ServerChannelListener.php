@@ -1,8 +1,8 @@
 <?php
 
-namespace Bayeux\Api\Server\ServerMessage\ServerChannel;
+namespace Bayeux\Api\Server\ServerChannel;
 
-use Bayeux\Api\Bayeux\Bayeux;
+use Bayeux\Api\Bayeux;
 
 /**
  * <p>Common interface for {@link ServerChannel} listeners.</p>

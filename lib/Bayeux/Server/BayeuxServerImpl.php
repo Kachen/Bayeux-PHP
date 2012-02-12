@@ -2,6 +2,18 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Message;
+
+use Bayeux\Api\Server\ServerMessage;
+
+
+use Bayeux\Api\Server\SecurityPolicy;
+use Bayeux\Api\Server\BayeuxServer\BayeuxServerListener;
+use Bayeux\Api\Server\BayeuxServer\Extension;
+use Bayeux\Api\Server\BayeuxServer;
+use Bayeux\Api\Server\ServerChannel\ServerChannelListener;
+use Bayeux\Api\Channel;
+
 /* ------------------------------------------------------------ */
 /**
  *
@@ -11,10 +23,6 @@ namespace Bayeux\Server;
  * invalid subscribers and non-persistent channels</td>
  * </dl>
  */
-use Bayeux\Api\Server\ServerMessage\ServerChannel\ServerChannelListener;
-
-use Bayeux\Api\Bayeux\Channel;
-
 class BayeuxServerImpl implements BayeuxServer
 {
     const LOG_LEVEL = "logLevel";
@@ -24,7 +32,6 @@ class BayeuxServerImpl implements BayeuxServer
     const DEBUG_LOG_LEVEL = 3;
 
     private $_logger;
-    private $_random;
     private $_listeners = array();
     private $_extensions = array();
     private $_sessions = array();
@@ -42,12 +49,11 @@ class BayeuxServerImpl implements BayeuxServer
     /* ------------------------------------------------------------ */
     public function __construct(array $transports = array())
     {
-        $this->_logger = Log::getLogger(getClass().getName() + "@" + System.identityHashCode(this));
-        $this->_random = new SecureRandom();
-        $this->_timeout = new Timeout();
+        //$this->_logger = Log::getLogger(getClass().getName() + "@" + System.identityHashCode(this));
+        //$this->_timeout = new Timeout();
 
-        $this->_timer = new Timer();
-        $this->_handshakeAdvice=new JSON.Literal("{\"reconnect\":\"handshake\",\"interval\":500}");
+        //$this->_timer = new Timer();
+        $this->_handshakeAdvice = '{"reconnect":"handshake","interval":500}';
         $this->_policy=new DefaultSecurityPolicy();
 
         if (empty($transports)) {
@@ -221,7 +227,7 @@ class BayeuxServerImpl implements BayeuxServer
      * @param dft The default value
      * @return long value
      */
-    protected function getOption($name, $dft = null)
+    public function getOption($name, $dft = null)
     {
         $val = $this->getOption(name);
         if ($val == null) {
@@ -259,7 +265,7 @@ class BayeuxServerImpl implements BayeuxServer
     /* ------------------------------------------------------------ */
     public function randomLong()
     {
-        return $this->_random->nextLong();
+        return uniqid();
     }
 
     /* ------------------------------------------------------------ */
@@ -407,12 +413,6 @@ class BayeuxServerImpl implements BayeuxServer
     public function newLocalSession($idHint)
     {
         return new LocalSessionImpl($this, $idHint);
-    }
-
-    /* ------------------------------------------------------------ */
-    public function newMessage()
-    {
-
     }
 
     /* ------------------------------------------------------------ */
@@ -959,7 +959,7 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
     /* ------------------------------------------------------------ */
-    protected function unknownSession(Mutable $reply)
+    protected function unknownSession(Servermessage\Mutable $reply)
     {
         $this->error($reply,"402::Unknown client");
         if (Channel::META_HANDSHAKE == $reply->getChannel() || Channel::META_CONNECT == $reply->getChannel()) {
@@ -1055,7 +1055,7 @@ abstract class HandlerListener implements ServerChannelListener
 
 class HandshakeHandler extends HandlerListener
 {
-    public function onMessage(ServerSessionImpl $session, Mutable $message)
+    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message)
     {
         if (session==null) {
             $session = $this->newServerSession();
@@ -1087,7 +1087,7 @@ class HandshakeHandler extends HandlerListener
 
 class ConnectHandler extends HandlerListener
 {
-    public function onMessage(ServerSessionImpl $session, Mutable $message)
+    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message)
     {
         $reply=$this->createReply($message);
 
@@ -1129,7 +1129,7 @@ class ConnectHandler extends HandlerListener
 
 class SubscribeHandler extends HandlerListener
 {
-    public function onMessage(ServerSessionImpl $from, Mutable $message)
+    public function onMessage(ServerSessionImpl $from, ServerMessage\Mutable $message)
     {
         $reply = $this->createReply($message);
         if ($this->isSessionUnknown(from))
@@ -1204,7 +1204,7 @@ class SubscribeHandler extends HandlerListener
 
 class UnsubscribeHandler extends HandlerListener
 {
-    public function onMessage(ServerSessionImpl $from, Mutable $message)
+    public function onMessage(ServerSessionImpl $from, ServerMessage\Mutable $message)
     {
         $reply=$this->createReply(message);
         if ($this->isSessionUnknown($from))
@@ -1236,7 +1236,7 @@ class UnsubscribeHandler extends HandlerListener
 
 class DisconnectHandler extends HandlerListener
 {
-    public function onMessage(ServerSessionImpl $session, Mutable $message)
+    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message)
     {
         $reply = $this->createReply($message);
         if ($this->isSessionUnknown($session))

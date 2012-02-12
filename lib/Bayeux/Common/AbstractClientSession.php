@@ -324,125 +324,126 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
     /* ------------------------------------------------------------ */
     protected function resetSubscriptions()
     {
-        for (MessageListener l : _subscriptions)
+        foreach ($this->_subscriptions as $key => $l)
         {
-            if (_subscriptions.remove(l))
-            _subscriptionCount.decrementAndGet();
+            unset($this->_subscriptions[$key]); //FIXME: verificar esse logica e mudar
+            $this->_subscriptionCount--;
         }
     }
 
     /* ------------------------------------------------------------ */
     public function getId()
     {
-        return _id.toString();
+        return $this->_id->toString();
     }
 
     /* ------------------------------------------------------------ */
     public function isDeepWild()
     {
-        return _id.isDeepWild();
+        return $this->_id->isDeepWild();
     }
 
     /* ------------------------------------------------------------ */
     public function isMeta()
     {
-        return _id.isMeta();
+        return $this->_id->isMeta();
     }
 
     /* ------------------------------------------------------------ */
     public function isService()
     {
-        return _id.isService();
+        return $this->_id->isService();
     }
 
     /* ------------------------------------------------------------ */
     public function isWild()
     {
-        return _id.isWild();
+        return $this->_id->isWild();
     }
 
-    protected function notifyMessageListeners(Message message)
+    protected function notifyMessageListeners(Message $message)
     {
-        for (ClientSessionChannelListener listener : _listeners)
+        foreach ($this->_listeners as $listener)
         {
             if (listener instanceof ClientSessionChannel.MessageListener)
             {
                 try
                 {
-                    ((MessageListener)listener).onMessage(this, message);
+                    $listener->onMessage($this, $message);
                 }
-                catch (Exception x)
+                catch (\Exception $x)
                 {
-                    logger.info(x);
+                    $this->logger->info($x);
                 }
             }
         }
-        for (ClientSessionChannelListener listener : _subscriptions)
+        foreach ($this->_subscriptions as $listener)
         {
-            if (listener instanceof ClientSessionChannel.MessageListener)
+            if ($listener instanceof ClientSessionChannel\MessageListener)
             {
-                if (message.getData() != null)
+                if ($message->getData() != null)
                 {
                     try
                     {
-                        ((MessageListener)listener).onMessage(this, message);
+                        $listener->onMessage($this, $message);
                     }
-                    catch (Exception x)
+                    catch (\Exception $x)
                     {
-                        logger.info(x);
+                        $this->logger->info($x);
                     }
                 }
             }
         }
     }
 
-    public function setAttribute(String name, Object value)
+    public function setAttribute($name, $value)
     {
-        _attributes.setAttribute(name, value);
+        $this->_attributes->setAttribute($name, $value);
     }
 
-    public function getAttribute(String name)
+    public function getAttribute($name)
     {
-        return _attributes.getAttribute(name);
+        return $this->_attributes->getAttribute($name);
     }
 
     public function getAttributeNames()
     {
-        return _attributes.keySet();
+        return array_keys($this->_attributes);
     }
 
-    public function removeAttribute(String name)
+    public function removeAttribute($name)
     {
-        Object old = getAttribute(name);
-        _attributes.removeAttribute(name);
-        return old;
+        $old = $this->getAttribute($name);
+        unset($this->_attributes[$name]);
+        return $old;
     }
 
-    protected function dump(StringBuilder b,String indent)
+    protected function dump($b, $indent)
     {
-        b.append(toString());
-        b.append('\n');
+        $b .= $this->toString();
+        $b .= '\n';
 
-        for (ClientSessionChannelListener child : _listeners)
+        foreach ($this->_listeners as $child)
         {
-            b.append(indent);
-            b.append(" +-");
-            b.append(child);
-            b.append('\n');
+            $b .= $indent;
+            $b .= " +-";
+            $b .= $child;
+            $b .= '\n';
         }
-        for (MessageListener child : _subscriptions)
+        foreach ($this->_subscriptions as $child)
         {
-            b.append(indent);
-            b.append(" +-");
-            b.append(child);
-            b.append('\n');
+            $b .= $indent;
+            $b .= " +-";
+            $b .= $child;
+            $b .= '\n';
         }
+        return $b;
     }
 
     /* ------------------------------------------------------------ */
     //@Override
     public function toString()
     {
-        return _id.toString();
+        return $this->_id->toString();
     }
 }

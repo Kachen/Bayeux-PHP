@@ -1,6 +1,6 @@
 <?php
 
-namespace Bayeux\Api\Bayeux;
+namespace Bayeux\Api;
 
 
 /**

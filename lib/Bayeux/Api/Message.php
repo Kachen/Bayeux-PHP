@@ -1,6 +1,6 @@
 <?php
 
-namespace Bayeux\Api\Bayeux;
+namespace Bayeux\Api;
 
 /**
  * <p>The Bayeux protocol exchange information by means of messages.</p>

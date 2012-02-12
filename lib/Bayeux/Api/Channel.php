@@ -1,6 +1,6 @@
 <?php
 
-namespace Bayeux\Api\Bayeux;
+namespace Bayeux\Api;
 
 /**
  * <p>A Bayeux channel is the primary message routing mechanism within Bayeux:

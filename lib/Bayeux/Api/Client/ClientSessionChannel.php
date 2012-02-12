@@ -1,10 +1,9 @@
 <?php
 
-namespace Bayeux\Api\Bayeux\Client;
+namespace Bayeux\Api\Client;
 
-use Bayeux\Api\Bayeux\Channel;
-
-use Bayeux\Api\Bayeux\Session;
+use Bayeux\Api\Channel;
+use Bayeux\Api\Session;
 
 /**
  * <p>A client side channel representation.</p>
@@ -24,12 +23,12 @@ interface ClientSessionChannel extends Channel
     /**
      * @param listener the listener to add
      */
-    public function addListener(ClientSessionChannelListener listener);
+    public function addListener(ClientSessionChannelListener $listener);
 
     /**
      * @param listener the listener to remove
      */
-    public function removeListener(ClientSessionChannelListener listener);
+    public function removeListener(ClientSessionChannelListener $listener);
 
     /**
      * @return the client session associated with this channel
@@ -40,7 +39,7 @@ interface ClientSessionChannel extends Channel
      * Equivalent to {@link #publish(Object, Object) publish(data, null)}.
      * @param data the data to publish
      */
-    public function publish(Object data);
+    public function publish($data);
 
     /**
      * Publishes the given {@code data} to this channel,
@@ -58,25 +57,25 @@ interface ClientSessionChannel extends Channel
     public function unsubscribe(MessageListener $listener);
 
     public function unsubscribe();
+}
 
-    /**
-     * <p>Represents a listener on a {@link ClientSessionChannel}.</p>
-     * <p>Sub-interfaces specify the exact semantic of the listener.</p>
-     */
-    interface ClientSessionChannelListener extends Bayeux\zBayeuxListener
-    {
-    }
+/**
+* <p>Represents a listener on a {@link ClientSessionChannel}.</p>
+* <p>Sub-interfaces specify the exact semantic of the listener.</p>
+*/
+interface ClientSessionChannelListener extends Bayeux\BayeuxListener
+{
+}
 
+/**
+ * A listener for messages on a {@link ClientSessionChannel}.
+ */
+interface MessageListener extends ClientSessionChannelListener
+{
     /**
-     * A listener for messages on a {@link ClientSessionChannel}.
+     * Callback invoked when a message is received on the given {@code channel}.
+     * @param channel the channel that received the message
+     * @param message the message received
      */
-    interface MessageListener extends ClientSessionChannelListener
-    {
-        /**
-         * Callback invoked when a message is received on the given {@code channel}.
-         * @param channel the channel that received the message
-         * @param message the message received
-         */
-        public function onMessage(ClientSessionChannel channel, Message message);
-    }
+    public function onMessage(ClientSessionChannel $channel, Message $message);
 }

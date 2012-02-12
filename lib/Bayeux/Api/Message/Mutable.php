@@ -1,8 +1,8 @@
 <?php
 
-namespace Bayeux\Api\Bayeux\Message;
+namespace Bayeux\Api\Message;
 
-use Bayeux\Api\Bayeux\Message;
+use Bayeux\Api\Message;
 
 /**
  * The mutable version of a {@link Message}

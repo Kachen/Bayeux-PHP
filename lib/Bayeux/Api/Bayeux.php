@@ -1,6 +1,6 @@
 <?php
 
-namespace Bayeux\Api\Bayeux;
+namespace Bayeux\Api;
 
 /**
  * <p>The {@link Bayeux} interface is the common API for both client-side and

@@ -2,6 +2,10 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Server\ServerChannel;
+use Bayeux\Api\Server\ServerMessage;
+use Bayeux\Api\Server\ServerSession;
+use Bayeux\Api\Server\BayeuxServer;
 use Bayeux\Api\Server\SecurityPolicy;
 
 class DefaultSecurityPolicy implements SecurityPolicy

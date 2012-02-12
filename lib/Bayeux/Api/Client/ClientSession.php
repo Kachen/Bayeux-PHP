@@ -1,8 +1,8 @@
 <?php
 
-namespace Bayeux\Api\Bayeux\Client;
+namespace Bayeux\Api\Client;
 
-use Bayeux\Api\Bayeux\Session;
+use Bayeux\Api\Session;
 
 /**
  * <p>This interface represents the client side Bayeux session.</p>

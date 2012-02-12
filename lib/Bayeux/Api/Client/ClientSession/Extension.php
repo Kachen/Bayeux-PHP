@@ -1,9 +1,9 @@
 <?php
 
-namespace Bayeux\Api\Bayeux\Cliente\ClientSession;
+namespace Bayeux\Api\Cliente\ClientSession;
 
-use Bayeux\Api\Bayeux\Message;
-use Bayeux\Api\Bayeux\Client\ClientSession;
+use Bayeux\Api\Message;
+use Bayeux\Api\Client\ClientSession;
 
 /**
  * <p>Extension API for client session.</p>

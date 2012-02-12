@@ -1,8 +1,8 @@
 <?php
 
-namespace Bayeux\Api\Bayeux\Client;
+namespace Bayeux\Api\Client;
 
-use Bayeux\Api\Bayeux\Bayeux\BayeuxListener;
+use Bayeux\Api\Bayeux\BayeuxListener;
 
 /**
  * <p>Represents a listener on a {@link ClientSessionChannel}.</p>
