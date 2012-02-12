@@ -2,11 +2,10 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Server\ServerMessage;
 
-class ServerMessageImpl extends HashMapMessage implements ServerMessage\Mutable
+class ServerMessageImpl extends \ArrayObject implements ServerMessage\Mutable
 {
-    const serialVersionUID = 6412048662640296067;
-
     private $_associated;
     private $_lazy = false;
     private $_json;
@@ -72,7 +71,7 @@ class ServerMessageImpl extends HashMapMessage implements ServerMessage\Mutable
     }
 
     //@Override
-    public function getDataAsMap()
+    public function getDataAsMap($create = null)
     {
         $data = parent::getDataAsMap();
         if ($this->_json != null && $data != null)
@@ -87,7 +86,7 @@ class ServerMessageImpl extends HashMapMessage implements ServerMessage\Mutable
     }
 
     //@Override
-    public function getAdvice()
+    public function getAdvice($create = null)
     {
         $advice = parent::getAdvice();
         return $advice;

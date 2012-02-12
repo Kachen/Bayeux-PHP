@@ -30,18 +30,13 @@ interface ClientSession extends Session
     public function removeExtension(Extension $extension);
 
     /**
-     * <p>Equivalent to {@link #handshake(Map) handshake(null)}.</p>
-     */
-    public function handshake();
-
-    /**
      * <p>Initiates the bayeux protocol handshake with the server(s).</p>
      * <p>The handshake initiated by this method is asynchronous and
      * does not wait for the handshake response.</p>
      *
      * @param template additional fields to add to the handshake message.
      */
-    public function handshake(/*Map<String, Object>*/ $template);
+    public function handshake(/*Map<String, Object>*/ $template = null);
 
     /**
      * <p>Returns a client side channel scoped by this session.</p>

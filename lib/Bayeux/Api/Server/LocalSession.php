@@ -2,7 +2,7 @@
 
 namespace Bayeux\Api\Server;
 
-use Bayeux\Api\Bayeux\Client\ClientSession;
+use Bayeux\Api\Client\ClientSession;
 
 /**
  * <p>A {@link LocalSession} is a {@link ClientSession} within the server.</p>

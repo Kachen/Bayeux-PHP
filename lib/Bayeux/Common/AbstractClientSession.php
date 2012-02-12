@@ -6,7 +6,6 @@ use Bayeux\Api\Client\ClientSession;
 use Bayeux\Api\ChannelId;
 use Bayeux\Api\Message;
 use Bayeux\Api\Cliente\ClientSession\Extension;
-use Bayeux\Api\Bayeux\Client\ClientSession;
 
 /**
  * <p>Partial implementation of {@link ClientSession}.</p>

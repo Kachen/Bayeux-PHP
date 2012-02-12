@@ -116,8 +116,8 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
     {
 
         $local = $this->_bayeux->newLocalSession("s0");
-        exit;
         $local->handshake();
+        exit;
         $session = $local->getServerSession();
 
         $local.setAttribute("foo","bar");

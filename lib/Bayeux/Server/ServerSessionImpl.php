@@ -3,7 +3,6 @@
 namespace Bayeux\Server;
 
 use Bayeux\Api\Session;
-
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Api\Server\ServerSession\ServerSessionListener;
 use Bayeux\Api\Server\ServerSession\Extension;
@@ -54,7 +53,7 @@ class ServerSessionImpl implements ServerSession
         $this->_subscribedTo = new \SplObjectStorage();
 
         $this->_bayeux=$bayeux;
-        $this->_logger=$bayeux->getLogger();
+        //$this->_logger=$bayeux->getLogger();
         $this->_localSession=$localSession;
 
         $id = '';

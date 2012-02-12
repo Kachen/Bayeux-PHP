@@ -15,7 +15,7 @@ interface Mutable extends Message
      * @return the advice of the message
      */
     //Map<String, Object> getAdvice(boolean create);
-    public function getAdvice($create);
+    public function getAdvice($create = null);
 
     /**
      * Convenience method to retrieve the {@link #DATA_FIELD} and create it if it does not exist
@@ -23,7 +23,7 @@ interface Mutable extends Message
      * @return the data of the message
      */
     //Map<String, Object> getDataAsMap(boolean create);
-    public function getDataAsMap($create);
+    public function getDataAsMap($create = null);
 
     /**
      * Convenience method to retrieve the {@link #EXT_FIELD} and create it if it does not exist

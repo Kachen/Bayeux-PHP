@@ -2,8 +2,8 @@
 
 namespace Bayeux\Server;
 
-use Bayeux\Common\AbstractClientSession\AbstractSessionChannel;
-
+use Bayeux\Api\Server\LocalSession;
+use Bayeux\Common\AbstractClientSession;
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Api\ChannelId;
 use Bayeux\Api\Channel;
@@ -46,10 +46,10 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
      * @see org.cometd.common.AbstractClientSession#newChannel(org.cometd.bayeux.ChannelId)
      */
 //     @Override
-    public function newChannel(ChannelId $channelId)
+    public function newChannel(ChannelId $channelId = null)
     {
         $localChannel = new LocalChannel($channelId);
-        $localChannel->setLocalSession($this, $this->_bayeux, $this->_session);
+        $localChannel->init($this, $this->_bayeux, $this->_session);
         return $localChannel;
     }
 
@@ -89,12 +89,13 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
     /* ------------------------------------------------------------ */
     public function handshake($template = null)
     {
-        if ($this->_session!=null) {
+        if ($this->_session != null) {
             throw new \Exception();
         }
 
         $message = $this->_bayeux->newMessage();
-        if ($template!=null) {
+        exit;
+        if ($template != null) {
             $this->message.putAll($template);
         }
         $message->setChannel(Channel::META_HANDSHAKE);
