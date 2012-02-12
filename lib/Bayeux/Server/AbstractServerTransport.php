@@ -2,6 +2,8 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Server\ServerTransport;
+
 /* ------------------------------------------------------------ */
 /** The base class of all server transports.
  * <p>
@@ -28,7 +30,7 @@ abstract class AbstractServerTransport implements ServerTransport
     private $_metaConnectDeliveryOnly=false;
     private $_advice;
 
-    private $_optionPrefix="";
+    private $_optionPrefix = '';
     private $_prefix = array();
 
     private $_name;
@@ -51,9 +53,9 @@ abstract class AbstractServerTransport implements ServerTransport
      */
     protected function __construct(BayeuxServerImpl $bayeux, $name)
     {
-        $this->_name=$name;
-        $this->_options=$bayeux->getOptions();
-        $this->_bayeux=$bayeux;
+        $this->_name = $name;
+        $this->_options = $bayeux->getOptions();
+        $this->_bayeux = $bayeux;
     }
 
 
@@ -116,38 +118,25 @@ abstract class AbstractServerTransport implements ServerTransport
      *   foobar
      * </pre>
      */
-    public function getOption($name)
+    public function getOption($name, $dftValue = null)
     {
-        $value = $this->_options->get($name);
+        if (! isset($this->_options[$name])) {
+            $value = null;
+        }
 
         $prefix = null;
-        foreach ($this->_prefix as $segment)
-        {
+        foreach ($this->_prefix as $segment) {
             $prefix = $prefix == null ? $segment : ($prefix . "." . $segment);
-            $key = $prefix ."." . ame;
-            if ($this->_options->containsKey($key)) {
+            $key = $prefix . "." . $name;
+            if (isset($this->_options[$key])) {
                 $value = $this->_options[$key];
             }
         }
-        return $value;
-    }
 
-    /* ------------------------------------------------------------ */
-    /** Get option or default value.
-     * @see #getOption(String)
-     * @param option The option name.
-     * @param dftValue The default value.
-     * @return option or default value
-     */
-    public function getOption2($option, $dftValue = null)
-    {
-        $value = $this->getOption(option);
-        if ($value==null) {
+        if ($value == null) {
             return $dftValue;
         }
-        /*if (is_bool($value)) {
-            return $value;
-        }*/
+
         return $value;
     }
 
@@ -201,10 +190,11 @@ abstract class AbstractServerTransport implements ServerTransport
      */
     public function setOptionPrefix($prefix)
     {
-        if (! $prefix.startsWith($this->_optionPrefix)) {
+        if ($this->_optionPrefix !== '' &&
+            strpos($this->_optionPrefix, $prefix) !== 0) {
             throw new IllegalArgumentException($this->_optionPrefix . " not prefix of " . $prefix);
         }
-        $this->_optionPrefix= $prefix;
+        $this->_optionPrefix = $prefix;
         $this->_prefix = explode('.', $prefix);
     }
 
@@ -226,7 +216,7 @@ abstract class AbstractServerTransport implements ServerTransport
     /* ------------------------------------------------------------ */
     public function setMetaConnectDeliveryOnly($meta)
     {
-        $this->_metaConnectDeliveryOnly=meta;
+        $this->_metaConnectDeliveryOnly = $meta;
     }
 
     /* ------------------------------------------------------------ */
@@ -250,15 +240,15 @@ abstract class AbstractServerTransport implements ServerTransport
      * transport.
      * This implementation clears the mutable options set.
      */
-    protected function init()
+    public function init()
     {
-        $this->_interval=$this->getOption(self::INTERVAL_OPTION, $this->_interval);
-        $this->_maxInterval=$this->getOption(self::MAX_INTERVAL_OPTION,$this->_maxInterval);
-        $this->_timeout=$this->getOption(self::TIMEOUT_OPTION, $this->_timeout);
-        $this->_maxLazyTimeout=$this->getOption(self::MAX_LAZY_OPTION, $this->_maxLazyTimeout);
-        $this->_metaConnectDeliveryOnly=$this->getOption(self::META_CONNECT_DELIVERY_OPTION, $this->_metaConnectDeliveryOnly);
+        $this->_interval = $this->getOption(self::INTERVAL_OPTION, $this->_interval);
+        $this->_maxInterval = $this->getOption(self::MAX_INTERVAL_OPTION, $this->_maxInterval);
+        $this->_timeout = $this->getOption(self::TIMEOUT_OPTION, $this->_timeout);
+        $this->_maxLazyTimeout = $this->getOption(self::MAX_LAZY_OPTION, $this->_maxLazyTimeout);
+        $this->_metaConnectDeliveryOnly = $this->getOption(self::META_CONNECT_DELIVERY_OPTION, $this->_metaConnectDeliveryOnly);
 
-        $this->_advice = "{\"reconnect\":\"retry\",\"interval\":" . $this->_interval . ",\"timeout\":" . $this->_timeout . "}";
+        $this->_advice = "{\"reconnect\":\"retry\",\"interval\":{$this->_interval},\"timeout\":{$this->_timeout}}";
     }
 
 
@@ -326,13 +316,3 @@ abstract class AbstractServerTransport implements ServerTransport
     }
 }
 
-/* ------------------------------------------------------------ */
-interface Scheduler
-{
-    public function cancel();
-    public function schedule();
-}
-
-/* ------------------------------------------------------------ */
-interface OneTimeScheduler extends Scheduler
-{}

@@ -15,7 +15,7 @@ error_reporting(E_ALL | E_STRICT | E_DEPRECATED);
 
 
 spl_autoload_register(function($class) {
-    var_dump($class);
+//     var_dump($class);
 	$file = str_replace("\\", "/", $class) . '.php';
 	require $file;
 });

@@ -3,7 +3,15 @@
 namespace Bayeux\Server;
 
 
-class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
+use Bayeux\Api\Server\BayeuxServer;
+use Bayeux\Api\Server\Authorizer;
+use Bayeux\Api\Server\ServerChannel\ServerChannelListener;
+use Bayeux\Api\ChannelId;
+use Bayeux\Api\Server\ConfigurableServerChannel;
+use Bayeux\Api\Server\ServerChannel;
+use Bayeux\Api\Session;
+
+class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
 {
     private $_bayeux;
     private $_id;
@@ -20,14 +28,14 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
     private $_sweeperPasses = 0;
 
     /* ------------------------------------------------------------ */
-    protected function __construct(BayeuxServerImpl $bayeux, ChannelId $id)
+    public function __construct(BayeuxServerImpl $bayeux, ChannelId $id)
     {
-        $this->_bayeux=$bayeux;
-        $this->_id=$id;
-        $this->_meta=$id->isMeta();
-        $this->_service=$id->isService();
-        $this->_broadcast=!$this->isMeta() && !$this->isService();
-        $this->_initialized=new CountDownLatch(1);
+        $this->_bayeux = $bayeux;
+        $this->_id = $id;
+        $this->_meta = $id->isMeta();
+        $this->_service = $id->isService();
+        $this->_broadcast = ! $this->isMeta() && ! $this->isService();
+        $this->_initialized = 1; //FIXME: deve ser unico
         $this->setPersistent(!$this->_broadcast);
     }
 
@@ -42,8 +50,9 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
     {
         try
         {
-            if (!$this->_initialized->await(5, TimeUnit.SECONDS))
-            throw new IllegalStateException("Not Initialized: " . $this);
+            if (!$this->_initialized->await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Not Initialized: " . $this);
+            }
         }
         catch(InterruptedException $e)
         {
@@ -62,7 +71,7 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
      * @param session
      * @return true if the subscribe succeeded.
      */
-    protected function subscribe(ServerSessionImpl $session)
+    public function subscribe(ServerSessionImpl $session)
     {
         if (!$session->isHandshook()) {
             return false;
@@ -73,24 +82,30 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
             $this->_subscribers[] = $session;
             $session->subscribedTo($this);
             foreach ($this->_listeners as $listener) {
-                if (listener instanceof SubscriptionListener) {
+                if ($listener instanceof SubscriptionListener) {
                     $listener->subscribed($session, $this);
                 }
             }
+
             foreach ($this->_bayeux->getListeners() as $listener) {
                 if ($listener instanceof BayeuxServer\SubscriptionListener) {
                     $listener->subscribed($session, $this);
                 }
             }
         }
+
         $this->_sweeperPasses = 0;
         return true;
     }
 
     /* ------------------------------------------------------------ */
-    protected function unsubscribe(ServerSessionImpl $session)
+    public function unsubscribe(ServerSessionImpl $session)
     {
         $key = array_search($session, $this->_subscribers);
+        if ($key === false) {
+            return false;
+        }
+
         unset($this->_subscribers[$key]);
         $session->unsubscribedTo($this);
         foreach ($this->_listeners as $listener) {
@@ -100,10 +115,11 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
         }
 
         foreach ($this->_bayeux->getListeners() as $listener) {
-            if ($listener instanceof BayeuxServer.SubscriptionListener) {
+            if ($listener instanceof BayeuxServer\SubscriptionListener) {
                 $listener->unsubscribed($session, $this);
             }
         }
+        return true;
     }
 
     /* ------------------------------------------------------------ */
@@ -151,13 +167,13 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
     /* ------------------------------------------------------------ */
     public function setPersistent($persistent)
     {
-        $this->_persistent=$persistent;
+        $this->_persistent = $persistent;
     }
 
     /* ------------------------------------------------------------ */
     public function addListener(ServerChannelListener $listener)
     {
-        $this->_listeners.add(listener);
+        $this->_listeners[] = $listener;
         $this->_sweeperPasses = 0;
     }
 
@@ -165,7 +181,11 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
     public function removeListener(ServerChannelListener $listener)
     {
         $key = arra_search($listener, $this->_listeners);
-        unset($this->_listeners[$key]);
+        if ($key !== false) {
+            unset($this->_listeners[$key]);
+            return true;
+        }
+        return false;
     }
 
     /* ------------------------------------------------------------ */
@@ -198,16 +218,29 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
         return $this->_service;
     }
 
-    /* ------------------------------------------------------------ */
-    public function publish(Session $from, ServerMessage\Mutable $mutable)
-    {
-        if ($this->isWild()) {
-            throw new IllegalStateException("Wild publish");
+    public function publish(Session $from = null, $arg1, $id = null) {
+        if (! $arg1 instanceof ServerMessage\Mutable) {
+            $mutable = $this->_bayeux->newMessage();
+            $mutable->setChannel($this->getId());
+            if($from != null) {
+                $mutable->setClientId($from->getId());
+            }
+            $mutable->setData($arg1);
+            if ($id !== null) {
+                throw new \InvalidArgumentException();
+            }
+            $mutable->setId($id);
         }
 
-        $session=($from instanceof ServerSessionImpl)
-            ?$from
-            :(($from instanceof LocalSession)?$from->getServerSession():null);
+        if ($this->isWild()) {
+            throw new \Exception('Wild publish');
+        }
+
+        $session = $from instanceof ServerSessionImpl ?
+            $from
+            : $from instanceof LocalSession ?
+                $from->getServerSession()
+                : null;
 
         // Do not leak the clientId to other subscribers
         // as we are now "sending" this message
@@ -216,19 +249,6 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
         if($this->_bayeux->extendSend($session, null, $mutable)) {
             $this->_bayeux->doPublish($session, $this, $mutable);
         }
-    }
-
-    /* ------------------------------------------------------------ */
-    public function publish(Session $from, $data, $id)
-    {
-        $mutable = $this->_bayeux->newMessage();
-        $mutable->setChannel($this->getId());
-        if($from!=null) {
-            $mutable->setClientId($from->getId());
-        }
-        $mutable->setData($data);
-        $mutable->setId($id);
-        $this->publish($from, $mutable);
     }
 
     /* ------------------------------------------------------------ */
@@ -276,8 +296,8 @@ class ServerChannelImpl implements ServerChannel, ConfigurableServerChannel
     /* ------------------------------------------------------------ */
     public function remove()
     {
-        foreach ($this->_bayeux->getChannelChildren(_id) as $child) {
-            $this->child->remove();
+        foreach ($this->_bayeux->getChannelChildren($this->_id) as $child) {
+            $child->remove();
         }
 
         if ($this->_bayeux->removeServerChannel($this))

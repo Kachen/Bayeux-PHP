@@ -3,7 +3,7 @@
 namespace Bayeux\Api\Server;
 
 use Bayeux\Api\Server\ServerMessage;
-use Bayeux\Api\Bayeux\Session;
+use Bayeux\Api\Session;
 
 /**
  * <p>Server side representation of a Bayeux channel.</p>
@@ -40,8 +40,6 @@ interface ServerChannel extends ConfigurableServerChannel
      * @param message the message to publish
      * @see #publish(Session, Object, String)
      */
-    public function publish($from, ServerMessage\Mutable $message);
-
     /**
      * <p>Publishes the given information to this channel.</p>
      * @param from the session from which the message originates
@@ -49,7 +47,7 @@ interface ServerChannel extends ConfigurableServerChannel
      * @param id the id of the message
      * @see #publish(Session, ServerMessage)
      */
-    public function publish(Session $from, $data, $id);
+    public function publish(Session $from = null, $arg1, $id = null);
 
     /**
      * <p>Removes this channel, and all the children channels.</p>

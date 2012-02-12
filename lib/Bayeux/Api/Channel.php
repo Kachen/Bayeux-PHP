@@ -58,22 +58,22 @@ interface Channel
     /**
      * @return true if the channel is a meta channel
      */
-    boolean isMeta();
+    public function isMeta();
 
     /**
      * @return true if the channel is a service channel
      */
-    boolean isService();
+    public function isService();
 
     /**
      * @return true if the channel is wild.
      */
-    boolean isWild();
+    public function isWild();
 
     /**
      * @return true if the channel is deeply wild.
      */
-    boolean isDeepWild();
+    public function isDeepWild();
 
     /**
      * <p>Sets a named channel attribute value.</p>
@@ -82,24 +82,24 @@ interface Channel
      * @param name the attribute name
      * @param value the attribute value
      */
-    void setAttribute(String name, Object value);
+    public function setAttribute($name, $value);
 
     /**
      * <p>Retrieves the value of named channel attribute.</p>
      * @param name the name of the attribute
      * @return the attribute value or null if the attribute is not present
      */
-    Object getAttribute(String name);
+    public function getAttribute($name);
 
     /**
      * @return the list of channel attribute names.
      */
-    Set<String> getAttributeNames();
+    public function getAttributeNames();
 
     /**
      * <p>Removes a named channel attribute.</p>
      * @param name the name of the attribute
      * @return the value of the attribute
      */
-    Object removeAttribute(String name);
+    public function removeAttribute($name);
 }

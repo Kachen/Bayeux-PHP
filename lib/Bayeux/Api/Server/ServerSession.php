@@ -2,9 +2,9 @@
 
 namespace Bayeux\Api\Server;
 
+use Bayeux\Api\Session;
 use Bayeux\Api\Server\ServerSession\Extension;
 use Bayeux\Api\Server\ServerSession\ServerSessionListener;
-use Bayeux\Api\Bayeux\Session;
 
 /**
  * <p>Objects implementing this interface are the server-side representation of remote Bayeux clients.</p>
@@ -69,8 +69,6 @@ interface ServerSession extends Session
      * @param message the message to deliver
      * @see #deliver(Session, String, Object, String)
      */
-    public function deliver(Session $from, ServerMessage\Mutable $message);
-
     /**
      * <p>Delivers the given information to this session.</p>
      * @param from the session delivering the message
@@ -79,7 +77,7 @@ interface ServerSession extends Session
      * @param id the id of the message, or null to let the implementation choose an id
      * @see #deliver(Session, Mutable)
      */
-    public function deliver(Session $from, $channel, $data, $id);
+    public function deliver(Session $from, $arg1, $data = null, $id = null);
 
 
     /* ------------------------------------------------------------ */

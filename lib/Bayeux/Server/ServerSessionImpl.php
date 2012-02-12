@@ -2,6 +2,15 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Session;
+
+use Bayeux\Api\Server\ServerMessage;
+use Bayeux\Api\Server\ServerSession\ServerSessionListener;
+use Bayeux\Api\Server\ServerSession\Extension;
+use Bayeux\Api\Server\ServerSession;
+use Bayeux\Api\Server\LocalSession;
+use Bayeux\Api\Channel;
+
 class ServerSessionImpl implements ServerSession
 {
     private static $_idCount; //=new AtomicLong();
@@ -40,9 +49,9 @@ class ServerSessionImpl implements ServerSession
     private $_lazyTask;
 
     /* ------------------------------------------------------------ */
-    protected function __construct(BayeuxServerImpl $bayeux, LocalSessionImpl $localSession = null, $idHint = null)
+    public function __construct(BayeuxServerImpl $bayeux, LocalSessionImpl $localSession = null, $idHint = null)
     {
-        $this->_subscribedTo = new \ArrayObject();
+        $this->_subscribedTo = new \SplObjectStorage();
 
         $this->_bayeux=$bayeux;
         $this->_logger=$bayeux->getLogger();
@@ -56,21 +65,17 @@ class ServerSessionImpl implements ServerSession
             $id .= $idHint;
             $id .= '_';
         }
-        $index= strlen($id);
+        $index = strlen($id);
 
-        while ($index<$len)
+        while (strlen($id) < $len)
         {
-            $random=$this->_bayeux->randomLong();
-            $id .= $random < 0 ? -$random:$random; //fimxe veririfacar esse trecho com o original
+            $id .= $this->_bayeux->randomLong();
         }
 
-        $id->insert(index,Long.toString(_idCount.incrementAndGet(),36));
-
-        $this->_id=$id;
-
+        $this->_id = $id;
         $transport = $this->_bayeux->getCurrentTransport();
-        if ($transport!=null) {
-            $this->_intervalTimestamp=System.currentTimeMillis()+transport.getMaxInterval();
+        if ($transport != null) {
+            //$this->_intervalTimestamp = System.currentTimeMillis() + $transport->getMaxInterval();
         }
     }
 
@@ -123,7 +128,7 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    public function batch(Runnable $batch)
+    public function batch($batch)
     {
         $this->startBatch();
         try
@@ -135,28 +140,30 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
+
+
     /* ------------------------------------------------------------ */
-    public function deliver(Session $from, Mutable $immutable)
+    public function deliver(Session $from, $arg1, $data = null, $id = null)
     {
-        if (!$this->_bayeux->extendSend($from, $this, $immutable)) {
+        if (is_string($arg1) && is_object($data) && is_string($id)) {
+            $mutable = $this->_bayeux->newMessage();
+            $mutable->setChannel($channelId);
+            $mutable->setData($data);
+            $mutable->setId($id);
+            $immutable = $mutable;
+        } else if (! $arg1 instanceof ServerMessage\Mutable) {
+            throw new \InvalidArgumentException();
+        }
+
+        if (! $this->_bayeux->extendSend($from, $this, $immutable)) {
             return;
         }
 
-        if (from instanceof LocalSession) {
-            $this->doDeliver($from->getServerSession(), $immutable);
-        } else {
-            $this->doDeliver($from, $immutable);
+        if ($from instanceof LocalSession) {
+            $from = $from->getServerSession();
         }
-    }
 
-    /* ------------------------------------------------------------ */
-    public function deliver(Session $from, $channelId, $data, $id)
-    {
-        $mutable = $this->_bayeux->newMessage();
-        $mutable.setChannel($channelId);
-        $mutable.setData($data);
-        $mutable.setId($id);
-        $this->deliver($from, $mutable);
+        $this->doDeliver($from, $immutable);
     }
 
     /* ------------------------------------------------------------ */
@@ -174,7 +181,7 @@ class ServerSessionImpl implements ServerSession
             $message = $this->extendSendMessage($mutable);
         }
 
-        if (message==null)
+        if ($message==null)
         return;
 
         foreach ($this->_listeners as $listener)
@@ -213,48 +220,48 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    protected function handshake()
+    public function handshake()
     {
-        _handshook.set(true);
+        $this->_handshook = true;
     }
 
     /* ------------------------------------------------------------ */
-    protected function connect()
+    public function connect()
     {
-            $this->_connected = true;
+        $this->_connected = true;
 
-            if ($this->_connectTimestamp==-1)
+        if ($this->_connectTimestamp == -1)
+        {
+            $transport = $this->_bayeux->getCurrentTransport();
+
+            if ($transport != null)
             {
-                $transport = $this->_bayeux->getCurrentTransport();
+                $this->_maxQueue = $transport->getOption("maxQueue", -1);
 
-                if ($transport!=null)
+                $this->_maxInterval = $this->_interval >= 0 ? ($this->_interval + $transport->getMaxInterval()-$transport->getInterval()) : $transport->getMaxInterval();
+                $this->_maxLazy = $transport->getMaxLazyTimeout();
+
+                if ($this->_maxLazy > 0)
                 {
-                    $this->_maxQueue=transport.getOption("maxQueue",-1);
-
-                    $this->_maxInterval=_interval>=0?(_interval+transport.getMaxInterval()-transport.getInterval()):transport.getMaxInterval();
-                    $this->_maxLazy=transport.getMaxLazyTimeout();
-
-                    if ($this->_maxLazy>0)
+                    /* $this->_lazyTask=new Timeout.Task()
                     {
-                        /* $this->_lazyTask=new Timeout.Task()
+                        @Override
+                        public void expired()
                         {
-                            @Override
-                            public void expired()
-                            {
-                                _lazyDispatch=false;
-                                flush();
-                            }
+                            _lazyDispatch=false;
+                            flush();
+                        }
 
-                            @Override
-                            public String toString()
-                            {
-                                return "LazyTask@"+getId();
-                            }
-                        }; */
-                    }
+                        @Override
+                        public String toString()
+                        {
+                            return "LazyTask@"+getId();
+                        }
+                    }; */
                 }
             }
-            $this->cancelIntervalTimeout();
+        }
+        $this->cancelIntervalTimeout();
     }
 
     /* ------------------------------------------------------------ */
@@ -264,9 +271,9 @@ class ServerSessionImpl implements ServerSession
         if ($connected)
         {
             $message = $this->_bayeux->newMessage();
-            $message.setClientId(getId());
-            $message.setChannel(Channel.META_DISCONNECT);
-            $message.setSuccessful(true);
+            $message->setClientId(getId());
+            $message->setChannel(Channel::META_DISCONNECT);
+            $message->setSuccessful(true);
             $this->deliver(this,message);
             if (count($this->_queue)>0) {
                 $this->flush();
@@ -457,12 +464,12 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function cancelIntervalTimeout()
     {
-            $now = System.currentTimeMillis();
-            if ($this->_intervalTimestamp>0) {
-                $this->_lastInterval=$now-($this->_intervalTimestamp-$this->_maxInterval);
+            $now = microtime();
+            if ($this->_intervalTimestamp > 0) {
+                $this->_lastInterval = $now - ($this->_intervalTimestamp - $this->_maxInterval);
             }
-            $this->_connectTimestamp=$now;
-            $this->_intervalTimestamp=0;
+            $this->_connectTimestamp = $now;
+            $this->_intervalTimestamp = 0;
     }
 
     /* ------------------------------------------------------------ */
@@ -508,7 +515,7 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function isHandshook()
     {
-        return _handshook.get();
+        return $this->_handshook;
     }
 
     /* ------------------------------------------------------------ */
@@ -635,9 +642,10 @@ class ServerSessionImpl implements ServerSession
      */
     protected function removed($timedout)
     {
-        $connected = $this->_connected.getAndSet(false);
-        $handshook = $this->_handshook.getAndSet(false);
-        if (connected || handshook)
+        $connected = $this->_connected;
+        $this->_connected = false;
+        $handshook = $this->_handshook;
+        if ($connected || $handshook)
         {
             foreach ($this->_subscribedTo as $channel => $value )
             {
@@ -657,7 +665,7 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function setMetaConnectDeliveryOnly($meta)
     {
-        $this->_metaConnectDelivery=$meta;
+        $this->_metaConnectDelivery = $meta;
     }
 
     /* ------------------------------------------------------------ */
@@ -667,15 +675,15 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    protected function subscribedTo(ServerChannelImpl $channel)
+    public function subscribedTo(ServerChannelImpl $channel)
     {
-        $this->_subscribedTo[$channel] = true;
+        $this->_subscribedTo->attach($channel, true);
     }
 
     /* ------------------------------------------------------------ */
-    protected function unsubscribedTo(ServerChannelImpl $channel)
+    public function unsubscribedTo(ServerChannelImpl $channel)
     {
-        $this->_subscribedTo.remove(channel);
+        $this->_subscribedTo->detach($channel);
     }
 
     /* ------------------------------------------------------------ */

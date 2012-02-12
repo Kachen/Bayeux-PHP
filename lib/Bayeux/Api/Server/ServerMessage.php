@@ -2,7 +2,7 @@
 
 namespace Bayeux\Api\Server;
 
-use Bayeux\Api\Bayeux\Message;
+use Bayeux\Api\Message;
 
 /**
  * <p>Representation of a server side message.</p>

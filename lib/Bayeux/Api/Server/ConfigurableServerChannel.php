@@ -2,7 +2,8 @@
 
 namespace Bayeux\Api\Server;
 
-use Bayeux\Api\Bayeux\Channel;
+use Bayeux\Api\Server\ServerChannel\ServerChannelListener;
+use Bayeux\Api\Channel;
 
 /**
  * <p>A {@link ConfigurableServerChannel} offers an API that can be used to

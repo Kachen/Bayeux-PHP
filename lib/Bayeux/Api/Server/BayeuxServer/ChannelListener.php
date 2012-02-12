@@ -17,7 +17,7 @@ use Bayeux\Api\Server\ServerChannel;
  * before any other {@link ServerChannel.ServerChannelListener server channel listeners}
  * that may be added during channel configuration.</p>
  */
-interface ChannelListener extends BayeuxServerListener, ConfigurableServerChannel\Initializer
+interface ChannelListener extends BayeuxServerListener, ServerChannel\Initializer
 {
     /**
      * Callback invoked when a {@link ServerChannel} has been added to a {@link BayeuxServer} object.

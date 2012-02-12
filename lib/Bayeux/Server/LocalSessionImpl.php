@@ -2,6 +2,13 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Common\AbstractClientSession\AbstractSessionChannel;
+
+use Bayeux\Api\Server\ServerMessage;
+use Bayeux\Api\ChannelId;
+use Bayeux\Api\Channel;
+use Bayeux\Api\Message;
+
 /* ------------------------------------------------------------ */
 /** A LocalSession implementation.
  * <p>
@@ -12,151 +19,151 @@ namespace Bayeux\Server;
  */
 class LocalSessionImpl extends AbstractClientSession implements LocalSession
 {
-    private static final Object LOCAL_ADVICE=JSON.parse("{\"interval\":-1}");
-    private final Queue<ServerMessage.Mutable> _queue = new ConcurrentLinkedQueue<ServerMessage.Mutable>();
-    private final BayeuxServerImpl _bayeux;
-    private final String _idHint;
+    const LOCAL_ADVICE = "{\"interval\":-1}";
+    private $_queue;
+    private $_bayeux;
+    private $_idHint;
 
-    private ServerSessionImpl _session;
+    private $_session;
 
     /* ------------------------------------------------------------ */
-    protected LocalSessionImpl(BayeuxServerImpl bayeux,String idHint)
+    public function __construct(BayeuxServerImpl $bayeux, $idHint)
     {
-        _bayeux=bayeux;
-        _idHint=idHint;
+        $this->_queue = new \SplQueue();
+        $this->_bayeux = $bayeux;
+        $this->_idHint = $idHint;
     }
 
-    @Override
-    public void receive(Message.Mutable message)
+    public function receive(Message\Mutable $message)
     {
-        super.receive(message);
-        if (Channel.META_DISCONNECT.equals(message.getChannel()) && message.isSuccessful())
-            _session = null;
+        parent::receive($message);
+        if (Channel::META_DISCONNECT == $message->getChannel() && $message->isSuccessful())
+            $this->_session = null;
     }
 
     /* ------------------------------------------------------------ */
     /**
      * @see org.cometd.common.AbstractClientSession#newChannel(org.cometd.bayeux.ChannelId)
      */
-    @Override
-    protected AbstractSessionChannel newChannel(ChannelId channelId)
+//     @Override
+    public function newChannel(ChannelId $channelId)
     {
-        return new LocalChannel(channelId);
+        $localChannel = new LocalChannel($channelId);
+        $localChannel->setLocalSession($this, $this->_bayeux, $this->_session);
+        return $localChannel;
     }
 
     /* ------------------------------------------------------------ */
     /**
      * @see org.cometd.common.AbstractClientSession#newChannelId(java.lang.String)
      */
-    @Override
-    protected ChannelId newChannelId(String channelId)
+//     @Override
+    public function newChannelId($channelId)
     {
-        return _bayeux.newChannelId(channelId);
+        return $this->_bayeux->newChannelId($channelId);
     }
 
     /* ------------------------------------------------------------ */
     /**
      * @see org.cometd.common.AbstractClientSession#sendBatch()
      */
-    @Override
-    protected void sendBatch()
+//     @Override
+    protected function sendBatch()
     {
-        int size=_queue.size();
-        while(size-->0)
+        $size = $this->_queue->count();
+        while(! $this->_queue->isEmpty())
         {
-            ServerMessage.Mutable message = _queue.poll();
-            doSend(_session,message);
+            $message = $this->_queue->dequeue();
+            $this->doSend($this->_session, $message);
         }
     }
 
     /* ------------------------------------------------------------ */
-    public ServerSession getServerSession()
+    public function getServerSession()
     {
-        if (_session==null)
+        if ($this->_session == null)
             throw new IllegalStateException("!handshake");
-        return _session;
+        return $this->_session;
     }
 
     /* ------------------------------------------------------------ */
-    public void handshake()
+    public function handshake($template = null)
     {
-        handshake(null);
-    }
+        if ($this->_session!=null) {
+            throw new \Exception();
+        }
 
-    /* ------------------------------------------------------------ */
-    public void handshake(Map<String, Object> template)
-    {
-        if (_session!=null)
-            throw new IllegalStateException();
+        $message = $this->_bayeux->newMessage();
+        if ($template!=null) {
+            $this->message.putAll($template);
+        }
+        $message->setChannel(Channel::META_HANDSHAKE);
+        $message->setId($this->newMessageId());
 
-        ServerMessage.Mutable message = _bayeux.newMessage();
-        if (template!=null)
-            message.putAll(template);
-        message.setChannel(Channel.META_HANDSHAKE);
-        message.setId(newMessageId());
+        $session = new ServerSessionImpl($this->_bayeux, $this, $this->_idHint);
 
-        ServerSessionImpl session = new ServerSessionImpl(_bayeux,this,_idHint);
+        $this->doSend($session, $message);
 
-        doSend(session,message);
-
-        ServerMessage reply = message.getAssociated();
-        if (reply!=null && reply.isSuccessful())
+        $reply = $message->getAssociated();
+        if ($reply!=null && $reply->isSuccessful())
         {
-            _session=session;
+            $this->_session=$session;
 
-            message = _bayeux.newMessage();
-            message.setChannel(Channel.META_CONNECT);
-            message.setClientId(_session.getId());
-            message.put(Message.ADVICE_FIELD,LOCAL_ADVICE);
-            message.setId(newMessageId());
+            $message = $this->_bayeux->newMessage();
+            $message->setChannel(Channel::META_CONNECT);
+            $message->setClientId($this->_session->getId());
+            $message[Message::ADVICE_FIELD] = self::LOCAL_ADVICE;
+            $message->setId($this->newMessageId());
 
-            doSend(session,message);
-            reply = message.getAssociated();
-            if (!reply.isSuccessful())
-                _session=null;
+            $this->doSend($session, $message);
+            $reply = $message->getAssociated();
+            if (!$reply->isSuccessful()) {
+                $this->_session=null;
+            }
         }
         message.setAssociated(null);
     }
 
     /* ------------------------------------------------------------ */
-    public void disconnect()
+    public function disconnect()
     {
-        if (_session!=null)
+        if ($this->_session!=null)
         {
-            ServerMessage.Mutable message = _bayeux.newMessage();
-            message.setChannel(Channel.META_DISCONNECT);
-            message.setId(newMessageId());
-            send(_session,message);
-            while (isBatching())
-                endBatch();
+            $message = $this->_bayeux->newMessage();
+            $message->setChannel(Channel::META_DISCONNECT);
+            $message->setId($this->newMessageId());
+            $this->send($this->_session, $message);
+            while ($this->isBatching()) {
+                $this->endBatch();
+            }
         }
     }
 
     /* ------------------------------------------------------------ */
-    public String getId()
+    public function getId()
     {
-        if (_session==null)
-            throw new IllegalStateException("!handshake");
-        return _session.getId();
+        if ($this->_session == null)
+            throw new \Exception("!handshake");
+        return $this->_session->getId();
     }
 
     /* ------------------------------------------------------------ */
-    public boolean isConnected()
+    public function isConnected()
     {
-        return _session!=null && _session.isConnected();
+        return $this->_session != null && $this->_session->isConnected();
     }
 
     /* ------------------------------------------------------------ */
-    public boolean isHandshook()
+    public function isHandshook()
     {
-        return _session!=null && _session.isHandshook();
+        return $this->_session!=null && $this->_session->isHandshook();
     }
 
     /* ------------------------------------------------------------ */
-    @Override
-    public String toString()
+//     @Override
+    public function toString()
     {
-        return "L:"+(_session==null?(_idHint+"?"):_session.getId());
+        return 'L:' . ($this->_session == null ? $this->_idHint . '?' : $this->_session->getId());
     }
 
     /* ------------------------------------------------------------ */
@@ -166,12 +173,13 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
      * @param session The ServerSession to send as. This normally the current server session, but during handshake it is a proposed server session.
      * @param message The message to send.
      */
-    protected void send(ServerSessionImpl session,ServerMessage.Mutable message)
+    protected function send(ServerSessionImpl $session, ServerMessage\Mutable $message)
     {
-        if (isBatching())
-            _queue.add(message);
-        else
-            doSend(session,message);
+        if ($this->isBatching()) {
+            $this->_queue->enqueue($message);
+        } else {
+            $this->doSend($session, $message);
+        }
     }
 
     /* ------------------------------------------------------------ */
@@ -181,95 +189,24 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
      * @param from The ServerSession to send as. This normally the current server session, but during handshake it is a proposed server session.
      * @param message The message to send.
      */
-    protected void doSend(ServerSessionImpl from,ServerMessage.Mutable message)
+    protected function doSend(ServerSessionImpl $from, ServerMessage\Mutable $message)
     {
-        if (!extendSend(message))
+        if (! $this->extendSend($message)) {
             return;
+        }
 
-        if (_session!=null)
-            message.setClientId(_session.getId());
+        if ($this->_session != null) {
+            $message->setClientId($this->_session->getId());
+        }
 
-        ServerMessage.Mutable reply = _bayeux.handle(from,message);
+        $reply = $this->_bayeux->handle($from, $message);
 
-        if (reply != null)
+        if ($reply != null)
         {
-            reply = _bayeux.extendReply(from,(_session!=null&&_session.isHandshook())?_session:null,reply);
-            if (reply != null)
-                receive(reply);
+            $reply = $this->_bayeux->extendReply($from, $this->isHandshook() ? $this->_session:null, $reply);
+            if ($reply != null) {
+                $this->receive($reply);
+            }
         }
     }
-
-    /* ------------------------------------------------------------ */
-    /* ------------------------------------------------------------ */
-    /** A channel scoped to this local session
-     */
-    protected class LocalChannel extends AbstractSessionChannel
-    {
-        /* ------------------------------------------------------------ */
-        LocalChannel(ChannelId id)
-        {
-            super(id);
-        }
-
-        /* ------------------------------------------------------------ */
-        public ClientSession getSession()
-        {
-            return LocalSessionImpl.this;
-        }
-
-        /* ------------------------------------------------------------ */
-        public void publish(Object data)
-        {
-            publish(data, null);
-        }
-
-        /* ------------------------------------------------------------ */
-        public void publish(Object data, String messageId)
-        {
-            if (_session == null)
-                throw new IllegalStateException("!handshake");
-
-            ServerMessage.Mutable message = _bayeux.newMessage();
-            message.setChannel(getId());
-            message.setData(data);
-            if (messageId != null)
-                message.setId(messageId);
-
-            send(_session, message);
-            message.setAssociated(null);
-        }
-
-        /* ------------------------------------------------------------ */
-        @Override
-        public String toString()
-        {
-            return super.toString()+"@"+LocalSessionImpl.this.toString();
-        }
-
-        @Override
-        protected void sendSubscribe()
-        {
-            ServerMessage.Mutable message = _bayeux.newMessage();
-            message.setChannel(Channel.META_SUBSCRIBE);
-            message.put(Message.SUBSCRIPTION_FIELD,getId());
-            message.setClientId(LocalSessionImpl.this.getId());
-            message.setId(newMessageId());
-
-            send(_session,message);
-            message.setAssociated(null);
-        }
-
-        @Override
-        protected void sendUnSubscribe()
-        {
-            ServerMessage.Mutable message = _bayeux.newMessage();
-            message.setChannel(Channel.META_UNSUBSCRIBE);
-            message.put(Message.SUBSCRIPTION_FIELD,getId());
-            message.setId(newMessageId());
-
-            send(_session,message);
-            message.setAssociated(null);
-        }
-    }
-
 }

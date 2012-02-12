@@ -3,10 +3,9 @@
 namespace Bayeux\Server\Transport;
 
 use Bayeux\Api\Server\ServerMessage;
-
 use Bayeux\Server\BayeuxServerImpl;
 
-class JSONTransport //extends LongPollingTransport
+class JSONTransport extends LongPollingTransport
 {
     const PREFIX = "long-polling.json";
     const NAME = "long-polling";
@@ -14,9 +13,9 @@ class JSONTransport //extends LongPollingTransport
 
     private $_mimeType = "application/json;charset=UTF-8";
 
-    public function __contruct(BayeuxServerImpl $bayeux)
+    public function __construct(BayeuxServerImpl $bayeux)
     {
-        //parent::__construct($bayeux, self::NAME);
+        parent::__construct($bayeux, self::NAME);
         $this->setOptionPrefix(self::PREFIX);
     }
 
@@ -27,7 +26,7 @@ class JSONTransport //extends LongPollingTransport
     }
 
 //     @Override
-    protected function init()
+    public function init()
     {
         parent::init();
         $this->_mimeType = $this->getOption(self::MIME_TYPE_OPTION, $this->_mimeType);

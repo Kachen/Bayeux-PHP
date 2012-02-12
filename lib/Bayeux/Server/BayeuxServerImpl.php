@@ -2,11 +2,13 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Server\ServerChannel;
+use Bayeux\Api\ChannelId;
+use Bayeux\Api\Server\ServerTransport;
+use Bayeux\Server\Transport\JSONPTransport;
+use Bayeux\Server\Transport\JSONTransport;
 use Bayeux\Api\Message;
-
 use Bayeux\Api\Server\ServerMessage;
-
-
 use Bayeux\Api\Server\SecurityPolicy;
 use Bayeux\Api\Server\BayeuxServer\BayeuxServerListener;
 use Bayeux\Api\Server\BayeuxServer\Extension;
@@ -38,7 +40,7 @@ class BayeuxServerImpl implements BayeuxServer
     private $_channels = array();
     private $_transports = array();
     private $_allowedTransports = array();
-    private $_currentTransport = array();
+    private $_currentTransport = null;
     private $_options = array();
     private $_timeout;
 
@@ -55,12 +57,11 @@ class BayeuxServerImpl implements BayeuxServer
         //$this->_timer = new Timer();
         $this->_handshakeAdvice = '{"reconnect":"handshake","interval":500}';
         $this->_policy=new DefaultSecurityPolicy();
-
         if (empty($transports)) {
             $this->addTransport(new JSONTransport($this));
             $this->addTransport(new JSONPTransport($this));
         } else {
-            $this->setTransports(transports);
+            $this->setTransports($transports);
         }
     }
 
@@ -72,14 +73,12 @@ class BayeuxServerImpl implements BayeuxServer
 
     /* ------------------------------------------------------------ */
     /**
-     * @see org.eclipse.jetty.util.component.AbstractLifeCycle#doStart()
      */
     //@Override
-    protected function doStart() //throws Exception
+    public function start() //throws Exception
     {
-        parent::doStart();
-
         $logLevel = self::OFF_LOG_LEVEL;
+
         $logLevelValue = $this->getOption(self::LOG_LEVEL);
         if ($logLevelValue != null)
         {
@@ -88,29 +87,29 @@ class BayeuxServerImpl implements BayeuxServer
 
         if ($logLevel >= self::CONFIG_LOG_LEVEL)
         {
-            throw new \Ecception('deboug');
+            throw new \Exception('deboug');
             //for (Map.Entry<String, Object> entry : getOptions().entrySet())
             //    getLogger().info(entry.getKey() + "=" + entry.getValue());
         }
 
         $this->initializeMetaChannels();
-
         $this->initializeDefaultTransports();
-
         $allowedTransportNames = $this->getAllowedTransports();
-        if ($this->allowedTransportNames->isEmpty()) {
-            throw new IllegalStateException("No allowed transport names are configured, there must be at least one");
+
+        if (empty($allowedTransportNames)) {
+            throw new \Exception("No allowed transport names are configured, there must be at least one");
         }
 
-        foreach ($this->allowedTransportNames as $allowedTransportName)
+        foreach ($allowedTransportNames as $allowedTransportName)
         {
             $allowedTransport = $this->getTransport($allowedTransportName);
-            if (allowedTransport instanceof AbstractServerTransport) {
+            if ($allowedTransport instanceof AbstractServerTransport) {
                 $allowedTransport->init();
             }
         }
 
-        $this->_timer = new Timer("BayeuxServer@" . $this->hashCode(), true);
+        //$this->_timer = new Timer("BayeuxServer@" . $this->hashCode(), true);
+
         $tick_interval = $this->getOption("tickIntervalMs", 97);
         if ($tick_interval > 0)
         {
@@ -147,18 +146,18 @@ class BayeuxServerImpl implements BayeuxServer
      * @see org.eclipse.jetty.util.component.AbstractLifeCycle#doStop()
      */
     //@Override
-    protected function doStop() //throws Exception
+    public function stop() //throws Exception
     {
-        parent::doStop();
+        //parent::doStop();
 
-        $this->_listeners.clear();
-        $this->_extensions.clear();
-        $this->_sessions.clear();
-        $this->_channels.clear();
-        $this->_transports.clear();
-        $this->_allowedTransports.clear();
-        $this->_options.clear();
-        $this->_timer.cancel();
+        $this->_listeners = array();
+        $this->_extensions = array();
+        $this->_sessions = array();
+        $this->_channels = array();
+        $this->_transports = array();
+        $this->_allowedTransports = array();
+        $this->_options = array();
+        //$this->_timer
     }
 
     protected function initializeMetaChannels()
@@ -182,13 +181,13 @@ class BayeuxServerImpl implements BayeuxServer
      */
     protected function initializeDefaultTransports()
     {
-        if ($this->_allowedTransports.size()==0)
+        if (empty($this->_allowedTransports))
         {
             foreach ($this->_transports as $t) {
-                $this->_allowedTransports->add($t->getName());
+                $this->_allowedTransports[] = $t->getName();
             }
         }
-        $this->_logger->info("Allowed Transports:" . $this->_allowedTransports);
+        //$this->_logger->info("Allowed Transports: " . $this->_allowedTransports);
     }
 
     /* ------------------------------------------------------------ */
@@ -229,14 +228,11 @@ class BayeuxServerImpl implements BayeuxServer
      */
     public function getOption($name, $dft = null)
     {
-        $val = $this->getOption(name);
-        if ($val == null) {
-            return dft;
+        if (! isset($this->_options[$name])) {
+            return $dft;
         }
-        //if ($val instanceof Number)
-        //return ((Number)val).longValue();
-        //return Long.parseLong(val.toString());
-        return $val;
+
+        return $this->_options[$name];
     }
 
     /* ------------------------------------------------------------ */
@@ -271,7 +267,7 @@ class BayeuxServerImpl implements BayeuxServer
     /* ------------------------------------------------------------ */
     public function setCurrentTransport(AbstractServerTransport $transport)
     {
-        $this->_currentTransport[] = $transport;
+        $this->_currentTransport = $transport;
     }
 
     /* ------------------------------------------------------------ */
@@ -283,7 +279,7 @@ class BayeuxServerImpl implements BayeuxServer
     /* ------------------------------------------------------------ */
     public function getContext()
     {
-        $transport=$this->_currentTransport;
+        $transport = $this->_currentTransport;
         return $transport == null ? null : $transport->getContext();
     }
 
@@ -296,27 +292,30 @@ class BayeuxServerImpl implements BayeuxServer
     /* ------------------------------------------------------------ */
     public function createIfAbsent($channelId /*ServerChannel\Initializer... initializers*/)
     {
-        if (empty($this->_channels[$channelId])) {
+        if (isset($this->_channels[$channelId])) {
             return false;
         }
 
+        $initializers = func_get_args();
+        unset($initializers[0]);
+
         $id = new ChannelId($channelId);
-        if ($id->depth()>1) {
-            $this->createIfAbsent(id.getParent());
+        if ($id->depth() > 1) {
+            $this->createIfAbsent($id->getParent());
         }
 
         $proposed = new ServerChannelImpl($this, $id);
-        $channel = $this->_channels.putIfAbsent($channelId, $proposed);
-        if ($channel==null)
-        {
+
+        if (empty($this->_channels[$channelId])) {
             // My proposed channel was added to the map, so I'd better initialize it!
-            $channel=$proposed;
-            $this->_logger->debug("added {}", $channel);
+            $this->_channels[$channelId] = $channel = $proposed;
+            //$this->_logger->debug("added {}", $channel);
             try
             {
-                foreach ($this->initializers as $initializer) {
+                foreach ($initializers as $initializer) {
                     $initializer->configureChannel($channel);
                 }
+
                 foreach ($this->_listeners as $listener)
                 {
                     if ($listener instanceof ServerChannel\Initializer) {
@@ -335,6 +334,8 @@ class BayeuxServerImpl implements BayeuxServer
             }
 
             return true;
+        } else {
+            $channel = $proposed;
         }
 
         // somebody else added it before me, so wait until it is initialized
@@ -361,12 +362,12 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
     /* ------------------------------------------------------------ */
-    protected function addServerSession(ServerSessionImpl $session)
+    public function addServerSession(ServerSessionImpl $session)
     {
         $this->_sessions[$session->getId()] = $session;
         foreach ($this->_listeners as $listener)
         {
-            if ($istener instanceof BayeuxServer\SessionListener) {
+            if ($listener instanceof BayeuxServer\SessionListener) {
                 $listener->sessionAdded($session);
             }
         }
@@ -404,7 +405,7 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
     /* ------------------------------------------------------------ */
-    protected function newServerSession(LocalSessionImpl $local = null, $idHint = null)
+    public function newServerSession(LocalSessionImpl $local = null, $idHint = null)
     {
         return new ServerSessionImpl($this, $local, $idHint);
     }
@@ -453,13 +454,14 @@ class BayeuxServerImpl implements BayeuxServer
     /* ------------------------------------------------------------ */
     public function addListener(BayeuxServerListener $listener)
     {
-        if ($listener == null) {
-            throw new NullPointerException();
-        }
         $this->_listeners[] = $listener;
     }
 
     /* ------------------------------------------------------------ */
+    /**
+     * (non-PHPdoc)
+     * @see Bayeux\Api\Server.BayeuxServer::getChannel()
+     */
     public function getChannel($channelId)
     {
         return $this->_channels[$channelId];
@@ -475,7 +477,7 @@ class BayeuxServerImpl implements BayeuxServer
     public function getChannelChildren(ChannelId $id)
     {
         $children = array();
-        foreach ($this->_channels as $value )
+        foreach ($this->_channels as $channel)
         {
             if ($id->isParentOf($channel->getChannelId())) {
                 $children[] = $channel;
@@ -891,10 +893,12 @@ class BayeuxServerImpl implements BayeuxServer
     /* ------------------------------------------------------------ */
     public function removeServerChannel(ServerChannelImpl $channel)
     {
-        if($this->_channels->remove($channel->getId(), $channel))
+        unset($this->_channels[$channel->getId()]);
+        //if($this->_channels->remove($channel->getId(), $channel))
+        if (empty($this->_channels[$channel->getId()]))
         {
-            $this->_logger->debug("removed {}", $channel);
-            foreach ($this->_listeners as $listener )
+            //$this->_logger->debug("removed {}", $channel);
+            foreach ($this->_listeners as $listener)
             {
                 if ($listener instanceof BayeuxServer\ChannelListener) {
                     $listener->channelRemoved($channel->getId());

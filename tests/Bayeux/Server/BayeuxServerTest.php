@@ -2,9 +2,18 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Server\ServerSession;
+use Bayeux\Api\Server\ServerChannel;
+use Bayeux\Api\Server\ConfigurableServerChannel;
+use Bayeux\Api\Server\BayeuxServer;
+
 class BayeuxServerTest extends \PHPUnit_Framework_TestCase
 {
-    private $_events;
+    public $_events;
+
+    /**
+     * @var Bayeux\Server\BayeuxServerImpl
+     */
     private $_bayeux;
 
 
@@ -20,13 +29,13 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
     public function tearDown() //throws Exception
     {
         $this->_bayeux->stop();
-        $this->_events->clear();
+        $this->_events = array();
     }
 
 
     private function newServerSession()
     {
-        $session = _bayeux.newServerSession();
+        $session = $this->_bayeux->newServerSession();
         $this->_bayeux->addServerSession($session);
         $session->handshake();
         $session->connect();
@@ -37,72 +46,77 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
     public function testListeners() //throws Exception
     {
 
-        var_dump("sfd");
-        exit;
-
-
-        $this->_bayeux->addListener(new SubListener());
-        $this->_bayeux->addListener(new SessListener());
-        $this->_bayeux->addListener(new CListener());
+        $this->_bayeux->addListener(new SubListener($this));
+        $this->_bayeux->addListener(new SessListener($this));
+        $this->_bayeux->addListener(new CListener($this));
 
         $channelName = "/foo/bar";
         $this->_bayeux->createIfAbsent($channelName);
         $foobar = $this->_bayeux->getChannel($channelName);
+
         $channelName = "/foo/*";
         $this->_bayeux->createIfAbsent($channelName);
         $foostar = $this->_bayeux->getChannel($channelName);
+
         $channelName = "/**";
         $this->_bayeux->createIfAbsent($channelName);
         $starstar = $this->_bayeux->getChannel($channelName);
+
         $channelName = "/foo/bob";
         $this->_bayeux->createIfAbsent($channelName);
         $foobob = $this->_bayeux->getChannel($channelName);
+
         $channelName = "/wibble";
         $this->_bayeux->createIfAbsent($channelName);
         $wibble = $this->_bayeux->getChannel($channelName);
 
-        $this->assertEquals("channelAdded", $this->_events.poll());
-        $this->assertEquals(_bayeux.getChannel("/foo"),_events.poll());
-        $this->assertEquals("channelAdded", $this->_events.poll());
-        $this->assertEquals(foobar,_events.poll());
-        $this->assertEquals("channelAdded", $this->_events.poll());
-        $this->assertEquals(foostar,_events.poll());
-        $this->assertEquals("channelAdded", $this->_events.poll());
-        $this->assertEquals(starstar,_events.poll());
-        $this->assertEquals("channelAdded", $this->_events.poll());
-        $this->assertEquals(foobob,_events.poll());
-        $this->assertEquals("channelAdded", $this->_events.poll());
-        $this->assertEquals(wibble,_events.poll());
+        $this->assertEquals("channelAdded", $this->_events->dequeue());
+        $this->assertEquals($this->_bayeux->getChannel("/foo"), $this->_events->dequeue());
+        $this->assertEquals("channelAdded", $this->_events->dequeue());
+        $this->assertEquals($foobar, $this->_events->dequeue());
+        $this->assertEquals("channelAdded", $this->_events->dequeue());
+        $this->assertEquals($foostar, $this->_events->dequeue());
+        $this->assertEquals("channelAdded", $this->_events->dequeue());
+        $this->assertEquals($starstar, $this->_events->dequeue());
+        $this->assertEquals("channelAdded", $this->_events->dequeue());
+        $this->assertEquals($foobob, $this->_events->dequeue());
+        $this->assertEquals("channelAdded", $this->_events->dequeue());
+        $this->assertEquals($wibble, $this->_events->dequeue());
 
-        wibble.remove();
-        assertEquals("channelRemoved",_events.poll());
-        assertEquals(wibble.getId(),_events.poll());
+
+        $wibble->remove();
+        $this->assertEquals("channelRemoved", $this->_events->dequeue());
+        $this->assertEquals($wibble->getId(), $this->_events->dequeue());
 
         $session0 = $this->newServerSession();
         $session1 = $this->newServerSession();
         $session2 = $this->newServerSession();
 
-        $this->assertEquals("sessionAdded",_events.poll());
-        $this->assertEquals(session0,_events.poll());
-        $this->assertEquals("sessionAdded",_events.poll());
-        $this->assertEquals(session1,_events.poll());
-        $this->assertEquals("sessionAdded",_events.poll());
-        $this->assertEquals(session2,_events.poll());
+        $this->assertEquals("sessionAdded", $this->_events->dequeue());
+        $this->assertEquals($session0, $this->_events->dequeue());
+        $this->assertEquals("sessionAdded", $this->_events->dequeue());
+        $this->assertEquals($session1, $this->_events->dequeue());
+        $this->assertEquals("sessionAdded", $this->_events->dequeue());
+        $this->assertEquals($session2, $this->_events->dequeue());
 
-        $foobar.subscribe(session0);
-        $foobar.unsubscribe(session0);
 
-        $this->assertEquals("subscribed",_events.poll());
-        $this->assertEquals(session0,_events.poll());
-        $this->assertEquals(foobar,_events.poll());
-        $this->assertEquals("unsubscribed",_events.poll());
-        $this->assertEquals(session0,_events.poll());
-        $this->assertEquals(foobar,_events.poll());
+        $foobar->subscribe($session0);
+        $foobar->unsubscribe($session0);
+
+        $this->assertEquals("subscribed", $this->_events->dequeue());
+        $this->assertEquals($session0, $this->_events->dequeue());
+        $this->assertEquals($foobar, $this->_events->dequeue());
+        $this->assertEquals("unsubscribed", $this->_events->dequeue());
+        $this->assertEquals($session0, $this->_events->dequeue());
+        $this->assertEquals($foobar, $this->_events->dequeue());
     }
+
 
     public function testSessionAttributes() //throws Exception
     {
+
         $local = $this->_bayeux->newLocalSession("s0");
+        exit;
         $local->handshake();
         $session = $local->getServerSession();
 
@@ -127,6 +141,7 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
     }
 }
 /*
+
     public function testLocalSessions() //throws Exception
     {
         $session0 = $this->_bayeux.newLocalSession("s0");
@@ -377,58 +392,68 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
 
     }
 }
-
-class CListener implements BayeuxServer.ChannelListener
-{
-    public void configureChannel(ConfigurableServerChannel channel)
-    {
-    }
-
-    public void channelAdded(ServerChannel channel)
-    {
-        _events.add("channelAdded");
-        _events.add(channel);
-    }
-
-    public void channelRemoved(String channelId)
-    {
-        _events.add("channelRemoved");
-        _events.add(channelId);
-    }
-
-}
-
-class SessListener implements BayeuxServer\SessionListener
-{
-    public function sessionAdded(ServerSession session)
-    {
-        _events.add("sessionAdded");
-        _events.add(session);
-    }
-
-    public void sessionRemoved(ServerSession session, boolean timedout)
-    {
-        _events.add("sessionRemoved");
-        _events.add(session);
-        _events.add(timedout);
-    }
-}
-
-class SubListener implements BayeuxServer.SubscriptionListener
-{
-    public void subscribed(ServerSession session, ServerChannel channel)
-    {
-        _events.add("subscribed");
-        _events.add(session);
-        _events.add(channel);
-    }
-
-    public void unsubscribed(ServerSession session, ServerChannel channel)
-    {
-        _events.add("unsubscribed");
-        _events.add(session);
-        _events.add(channel);
-    }
-
-}
 */
+
+abstract class AListener {
+
+    protected $_test;
+
+    public function __construct(BayeuxServerTest $test) {
+        $this->_test = $test;
+    }
+}
+
+class CListener extends AListener implements BayeuxServer\ChannelListener
+{
+    public function configureChannel(ConfigurableServerChannel $channel)
+    {
+    }
+
+    public function channelAdded(ServerChannel $channel)
+    {
+        $this->_test->_events->enqueue("channelAdded");
+        $this->_test->_events->enqueue($channel);
+    }
+
+    public function channelRemoved($channelId)
+    {
+        $this->_test->_events->enqueue("channelRemoved");
+        $this->_test->_events->enqueue($channelId);
+    }
+
+}
+
+
+class SessListener extends AListener implements BayeuxServer\SessionListener
+{
+    public function sessionAdded(ServerSession $session)
+    {
+        $this->_test->_events->enqueue("sessionAdded");
+        $this->_test->_events->enqueue($session);
+    }
+
+    public function sessionRemoved(ServerSession $session, $timedout)
+    {
+        $this->_test->_events->enqueue("sessionRemoved");
+        $this->_test->_events->enqueue($session);
+        $this->_test->_events->enqueue($timedout);
+    }
+}
+
+class SubListener extends AListener implements BayeuxServer\SubscriptionListener
+{
+    public function subscribed(ServerSession $session, ServerChannel $channel)
+    {
+        $this->_test->_events->enqueue("subscribed");
+        $this->_test->_events->enqueue($session);
+        $this->_test->_events->enqueue($channel);
+    }
+
+    public function unsubscribed(ServerSession $session, ServerChannel $channel)
+    {
+        $this->_test->_events->enqueue("unsubscribed");
+        $this->_test->_events->enqueue($session);
+        $this->_test->_events->enqueue($channel);
+    }
+
+}

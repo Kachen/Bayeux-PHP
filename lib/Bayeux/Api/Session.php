@@ -86,7 +86,7 @@ interface Session
      * command and then all messages are sent at once.</p>
      * @param batch the Runnable to run as a batch
      */
-    public function batch(Runnable $batch);
+    public function batch($batch);
 
     /**
      * <p>Starts a batch, to be ended with {@link #endBatch()}.</p>
