@@ -482,7 +482,10 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function getAttribute($name)
     {
-        return $this->_attributes[$name];
+        if (isset($this->_attributes[$name])) {
+            return $this->_attributes[$name];
+        }
+        return null;
     }
 
     /* ------------------------------------------------------------ */
@@ -495,7 +498,7 @@ class ServerSessionImpl implements ServerSession
     public function removeAttribute($name)
     {
         $old = $this->getAttribute($name);
-        $this->_attributes->removeAttribute($name);
+        unset($this->_attributes[$name]);
         return $old;
     }
 
@@ -518,7 +521,7 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    protected function extendRecv(ServerMessage\Mutable $message)
+    public function extendRecv(ServerMessage\Mutable $message)
     {
         if ($message->isMeta())
         {
@@ -540,7 +543,7 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    protected function extendSendMeta(ServerMessage\Mutable $message)
+    public function extendSendMeta(ServerMessage\Mutable $message)
     {
         if (!$message->isMeta()) {
             throw new IllegalStateException();
@@ -555,7 +558,7 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    protected function extendSendMessage(ServerMessage $message)
+    public function extendSendMessage(ServerMessage $message)
     {
         if ($message->isMeta()) {
             throw new IllegalStateException();
@@ -596,11 +599,11 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function takeAdvice()
     {
-        $transport = $this->_bayeux.getCurrentTransport();
+        $transport = $this->_bayeux->getCurrentTransport();
 
-        if (transport!=null && $transport!=$this->_advisedTransport)
+        if ($transport != null && $transport != $this->_advisedTransport)
         {
-            $this->_advisedTransport=transport;
+            $this->_advisedTransport = $transport;
             return $this->getAdvice();
         }
 

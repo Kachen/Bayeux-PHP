@@ -1,7 +1,9 @@
 <?php
 
-namespace Bayeux\Api\Server;
+namespace Bayeux\Api\Server\Authorizer\Result;
 
+
+use Bayeux\Api\Server\Authorizer\Result;
 
 final class Ignored extends Result
 {

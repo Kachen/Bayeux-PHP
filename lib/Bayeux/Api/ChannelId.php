@@ -25,7 +25,7 @@ class ChannelId
     const DEEPWILD = "**";
 
     private $_name;
-    private $_segments = array();
+    public $_segments = array();
     private $_wild;
     private $_wilds = array();
     private $_parent;
@@ -93,21 +93,30 @@ class ChannelId
         return $this->_wild > 1;
     }
 
-    public function isMeta($channelId = null)
-    {
-        $this->_typeSegment('meta', $channelId);
+    public static function staticIsMeta($channelId) {
+        return self::_staticTypeSegment('meta', $channelId);
     }
 
-    public function isService($channelId = null)
-    {
-        $this->_typeSegment('service', $channelId);
+    public static function staticIsService($channelId) {
+        return self::_staticTypeSegment('service', $channelId);
     }
 
-    private function _typeSegment($segment, $channelId) {
-        if ($channelId === null) {
-            return count($this->_segments) > 0 && $segment == $this->_segments[0];
-        }
+    private static function _staticTypeSegment($segment, $channelId) {
         return $channelId != '' && stripos($channelId, "/{$segment}/") === 0;
+    }
+
+    public function isMeta()
+    {
+        return $this->_typeSegment('meta');
+    }
+
+    public function isService()
+    {
+        return $this->_typeSegment('service');
+    }
+
+    private function _typeSegment($segment) {
+        return count($this->_segments) > 0 && $segment == $this->_segments[0];
     }
 
     //@Override
@@ -152,8 +161,9 @@ class ChannelId
             case 0:
                 return $this->equals($name);
             case 1:
-                if (count($name._segments) != count($this->_segments))
+                if (count($name->_segments) != count($this->_segments)) {
                     return false;
+                }
                 for ($i=count($this->_segments) - 1; $i-- > 0;) {
                     if (!$this->_segments[$i] == $name->_segments[$i]) {
                         return false;
@@ -166,7 +176,7 @@ class ChannelId
                     return false;
                 }
                 for ($i=count($this->_segments) - 1; $i-- > 0;) {
-                    if (!$this->_segments[i] == $name->_segments[$i]) {
+                    if (!$this->_segments[$i] == $name->_segments[$i]) {
                         return false;
                     }
                 }
@@ -246,7 +256,7 @@ class ChannelId
      */
     public function getWilds()
     {
-        return _wilds;
+        return $this->_wilds;
     }
 
 }

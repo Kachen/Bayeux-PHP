@@ -31,7 +31,7 @@ interface Mutable extends Message
      * @return the ext of the message
      */
     //Map<String, Object> getExt(boolean create);
-    public function getExt($create);
+    public function getExt($create = null);
 
     /**
      * @param channel the channel of this message

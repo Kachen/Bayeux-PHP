@@ -1,16 +1,17 @@
 <?php
 
-namespace Bayeux\Api\Server;
+namespace Bayeux\Api\Server\Authorizer\Result;
 
+use Bayeux\Api\Server\Authorizer\Result;
 
 final class Denied extends Result
 {
     private $reason;
 
     // FIXME: tem valor padrão null
-    private function __construct($reason)
+    public function __construct($reason)
     {
-        if (reason == null) {
+        if ($reason == null) {
             $this->reason = "";
         }
         $this->reason = $reason;

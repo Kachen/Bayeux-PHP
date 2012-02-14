@@ -2,9 +2,10 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Common\HashMapMessage;
 use Bayeux\Api\Server\ServerMessage;
 
-class ServerMessageImpl extends \ArrayObject implements ServerMessage\Mutable
+class ServerMessageImpl extends HashMapMessage implements ServerMessage\Mutable
 {
     private $_associated;
     private $_lazy = false;
@@ -15,7 +16,7 @@ class ServerMessageImpl extends \ArrayObject implements ServerMessage\Mutable
         return $this->_associated;
     }
 
-    public function setAssociated(ServerMessage\Mutable $associated)
+    public function setAssociated(ServerMessage\Mutable $associated = null)
     {
         $this->_associated = $associated;
     }
@@ -79,7 +80,7 @@ class ServerMessageImpl extends \ArrayObject implements ServerMessage\Mutable
     }
 
     //@Override
-    public function getExt()
+    public function getExt($create = null)
     {
         $ext = parent::getExt();
         return $ext;

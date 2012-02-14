@@ -2,6 +2,7 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Server\LocalSessionImpl\LocalChannel;
 use Bayeux\Api\Server\LocalSession;
 use Bayeux\Common\AbstractClientSession;
 use Bayeux\Api\Server\ServerMessage;
@@ -81,8 +82,9 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
     /* ------------------------------------------------------------ */
     public function getServerSession()
     {
-        if ($this->_session == null)
-            throw new IllegalStateException("!handshake");
+        if ($this->_session == null) {
+            throw new \Exception("!handshake");
+        }
         return $this->_session;
     }
 
@@ -94,9 +96,9 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         }
 
         $message = $this->_bayeux->newMessage();
-        exit;
+
         if ($template != null) {
-            $this->message.putAll($template);
+            $this->message[] = $template;
         }
         $message->setChannel(Channel::META_HANDSHAKE);
         $message->setId($this->newMessageId());
@@ -106,9 +108,10 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         $this->doSend($session, $message);
 
         $reply = $message->getAssociated();
-        if ($reply!=null && $reply->isSuccessful())
+
+        if ($reply != null && $reply->isSuccessful())
         {
-            $this->_session=$session;
+            $this->_session = $session;
 
             $message = $this->_bayeux->newMessage();
             $message->setChannel(Channel::META_CONNECT);
@@ -119,10 +122,11 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
             $this->doSend($session, $message);
             $reply = $message->getAssociated();
             if (!$reply->isSuccessful()) {
-                $this->_session=null;
+                $this->_session = null;
             }
         }
-        message.setAssociated(null);
+
+        $message->setAssociated(null);
     }
 
     /* ------------------------------------------------------------ */
@@ -143,8 +147,9 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
     /* ------------------------------------------------------------ */
     public function getId()
     {
-        if ($this->_session == null)
+        if ($this->_session == null) {
             throw new \Exception("!handshake");
+        }
         return $this->_session->getId();
     }
 
@@ -201,10 +206,10 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         }
 
         $reply = $this->_bayeux->handle($from, $message);
-
         if ($reply != null)
         {
             $reply = $this->_bayeux->extendReply($from, $this->isHandshook() ? $this->_session:null, $reply);
+
             if ($reply != null) {
                 $this->receive($reply);
             }

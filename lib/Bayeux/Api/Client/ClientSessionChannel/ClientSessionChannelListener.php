@@ -1,6 +1,6 @@
 <?php
 
-namespace Bayeux\Api\Client;
+namespace Bayeux\Api\Client\ClientSessionChannel;
 
 use Bayeux\Api\Bayeux\BayeuxListener;
 

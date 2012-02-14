@@ -2,6 +2,8 @@
 
 namespace Bayeux\Api\Client;
 
+use Bayeux\Api\Client\ClientSessionChannel\MessageListener;
+use Bayeux\Api\Client\ClientSessionChannel\ClientSessionChannelListener;
 use Bayeux\Api\Channel;
 use Bayeux\Api\Session;
 
@@ -39,8 +41,6 @@ interface ClientSessionChannel extends Channel
      * Equivalent to {@link #publish(Object, Object) publish(data, null)}.
      * @param data the data to publish
      */
-    public function publish($data);
-
     /**
      * Publishes the given {@code data} to this channel,
      * optionally specifying the {@code messageId} to set on the
@@ -50,32 +50,9 @@ interface ClientSessionChannel extends Channel
      * implementation choose the message id.
      * @see Message#getId()
      */
-    public function publish($data, $messageId);
+    public function publish($data, $messageId = null);
 
     public function subscribe(MessageListener $listener);
 
-    public function unsubscribe(MessageListener $listener);
-
-    public function unsubscribe();
-}
-
-/**
-* <p>Represents a listener on a {@link ClientSessionChannel}.</p>
-* <p>Sub-interfaces specify the exact semantic of the listener.</p>
-*/
-interface ClientSessionChannelListener extends Bayeux\BayeuxListener
-{
-}
-
-/**
- * A listener for messages on a {@link ClientSessionChannel}.
- */
-interface MessageListener extends ClientSessionChannelListener
-{
-    /**
-     * Callback invoked when a message is received on the given {@code channel}.
-     * @param channel the channel that received the message
-     * @param message the message received
-     */
-    public function onMessage(ClientSessionChannel $channel, Message $message);
+    public function unsubscribe(MessageListener $listener = null);
 }

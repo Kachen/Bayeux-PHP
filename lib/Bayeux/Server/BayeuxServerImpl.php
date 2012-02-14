@@ -2,6 +2,15 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Server\BayeuxServerImpl\HandlerListener;
+use Bayeux\Server\BayeuxServerImpl\DisconnectHandler;
+use Bayeux\Server\BayeuxServerImpl\UnsubscribeHandler;
+use Bayeux\Server\BayeuxServerImpl\SubscribeHandler;
+use Bayeux\Server\BayeuxServerImpl\ConnectHandler;
+use Bayeux\Server\BayeuxServerImpl\HandshakeHandler;
+use Bayeux\Api\Client\MessageListener;
+use Bayeux\Api\Server\Authorizer;
+use Bayeux\Api\Server\ServerSession;
 use Bayeux\Api\Server\ServerChannel;
 use Bayeux\Api\ChannelId;
 use Bayeux\Api\Server\ServerTransport;
@@ -63,6 +72,10 @@ class BayeuxServerImpl implements BayeuxServer
         } else {
             $this->setTransports($transports);
         }
+    }
+
+    public function get(HandlerListener $handler, $name) {
+        return $this->{$name};
     }
 
     /* ------------------------------------------------------------ */
@@ -167,6 +180,9 @@ class BayeuxServerImpl implements BayeuxServer
         $this->createIfAbsent(Channel::META_SUBSCRIBE);
         $this->createIfAbsent(Channel::META_UNSUBSCRIBE);
         $this->createIfAbsent(Channel::META_DISCONNECT);
+
+
+        HandlerListener::setBayeuxServerImpl($this);
         $this->getChannel(Channel::META_HANDSHAKE)->addListener(new HandshakeHandler());
         $this->getChannel(Channel::META_CONNECT)->addListener(new ConnectHandler());
         $this->getChannel(Channel::META_SUBSCRIBE)->addListener(new SubscribeHandler());
@@ -205,11 +221,11 @@ class BayeuxServerImpl implements BayeuxServer
     /* ------------------------------------------------------------ */
     public function newChannelId($id)
     {
-        $channel = $this->_channels[$id];
-        if ($channel != null) {
-            return $channel->getChannelId();
+        if (isset($this->_channels[$id])) {
+            return $this->_channels[$id]->getChannelId();
+        } else {
+            return new ChannelId($id);
         }
-        return new ChannelId($id);
     }
 
     /* ------------------------------------------------------------ */
@@ -417,6 +433,11 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
     /* ------------------------------------------------------------ */
+    /**
+     * (non-PHPdoc)
+     * @see Bayeux\Api\Server.BayeuxServer::newMessage()
+     * return Message
+     */
     public function newMessage(ServerMessage $tocopy = null)
     {
         if ($tocopy === null) {
@@ -503,9 +524,9 @@ class BayeuxServerImpl implements BayeuxServer
      */
     public function handle(ServerSessionImpl $session, ServerMessage\Mutable $message)
     {
-        if ($this->_logger->isDebugEnabled()) {
+        /* if ($this->_logger->isDebugEnabled()) {
             $this->_logger.debug(">  " + message + " " + session);
-        }
+        } */
 
         $reply = null;
         if (!$this->extendRecv($session, $message) || $session != null && !$session->extendRecv($message))
@@ -515,9 +536,9 @@ class BayeuxServerImpl implements BayeuxServer
         }
         else
         {
-            if ($this->_logger->isDebugEnabled()) {
+            /* if ($this->_logger->isDebugEnabled()) {
                 $this->_logger->debug(">> " + message);
-            }
+            } */
 
             $channelName = $message->getChannel();
 
@@ -573,7 +594,7 @@ class BayeuxServerImpl implements BayeuxServer
                             $publishResult = $this->isPublishAuthorized($channel, $session, $message);
                             if ($publishResult instanceof Authorizer\Result\Denied)
                             {
-                                $reply = $this->createReply(message);
+                                $reply = $this->createReply($message);
                                 $denyReason = $publishResult->getReason();
                                 $this->error($reply, "403:" . $denyReason . ":publish denied");
                             }
@@ -591,9 +612,9 @@ class BayeuxServerImpl implements BayeuxServer
 
         // Here the reply may be null if this instance is stopped concurrently
 
-        if ($this->_logger->isDebugEnabled()) {
+/*        if ($this->_logger->isDebugEnabled()) {
             $this->_logger->debug("<< " . $reply);
-        }
+        }*/
         return $reply;
     }
 
@@ -601,8 +622,8 @@ class BayeuxServerImpl implements BayeuxServer
     {
         if ($this->_policy != null && !$this->_policy->canPublish($this, $session, $channel, $message))
         {
-            $this->_logger->warn("{} denied Publish@{} by {}", $session, $channel->getId(), $this->_policy);
-            return Authorizer\Result\deny("denied_by_security_policy");
+            //$this->_logger->warn("{} denied Publish@{} by {}", $session, $channel->getId(), $this->_policy);
+            return Authorizer\Result::deny("denied_by_security_policy");
         }
         return $this->isOperationAuthorized(Authorizer\Operation::PUBLISH, $session, $message, $channel->getChannelId());
     }
@@ -611,8 +632,8 @@ class BayeuxServerImpl implements BayeuxServer
     {
         if ($this->_policy != null && !$this->_policy->canSubscribe($this, $session, $channel, $message))
         {
-            $this->_logger->warn("{} denied Publish@{} by {}", $session, $channel, $this->_policy);
-            return Authorizer\Result\deny("denied_by_security_policy");
+            //$this->_logger->warn("{} denied Publish@{} by {}", $session, $channel, $this->_policy);
+            return Authorizer\Result::deny("denied_by_security_policy");
         }
         return $this->isOperationAuthorized(Authorizer\Operation::SUBSCRIBE, $session, $message, $channel->getChannelId());
     }
@@ -621,8 +642,8 @@ class BayeuxServerImpl implements BayeuxServer
     {
         if ($this->_policy != null && !$this->_policy->canCreate(this, $session, $channel, $message))
         {
-            $this->_logger->warn("{} denied Create@{} by {}", $session, $message->getChannel(), $this->_policy);
-            return Authorizer\Result\deny("denied_by_security_policy");
+            //$this->_logger->warn("{} denied Create@{} by {}", $session, $message->getChannel(), $this->_policy);
+            return Authorizer\Result::deny("denied_by_security_policy");
         }
         return $this->isOperationAuthorized(\Authorizer\Operation::CREATE, $session, $message, new ChannelId($channel));
     }
@@ -642,7 +663,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
 
         $called = false;
-        $result = Authorizer\Result\ignore();
+        $result = Authorizer\Result::ignore();
         foreach ($channels as $channel)
         {
             foreach ($channel->getAuthorizers() as $authorizer)
@@ -665,18 +686,18 @@ class BayeuxServerImpl implements BayeuxServer
         if (!$called)
         {
             $result = Authorizer\Result::grant();
-            $this->_logger->debug("No authorizers, {} for channel {} {}", $operation, $channelId, $result);
+            //$this->_logger->debug("No authorizers, {} for channel {} {}", $operation, $channelId, $result);
         }
         else
         {
             if ($result instanceof Authorizer\Result\Ignored)
             {
-                $result = Authorizer\Result\deny("denied_by_not_granting");
-                $this->_logger->debug("No authorizer granted {} for channel {}, authorization {}", operation, channelId, result);
+                $result = Authorizer\Result::deny("denied_by_not_granting");
+                //$this->_logger->debug("No authorizer granted {} for channel {}, authorization {}", operation, channelId, result);
             }
             else if ($result instanceof Authorizer\Result\Granted)
             {
-                $this->_logger->debug("No authorizer denied {} for channel {}, authorization {}", $operation, $channelId, $result);
+                //$this->_logger->debug("No authorizer denied {} for channel {}, authorization {}", $operation, $channelId, $result);
             }
         }
 
@@ -708,7 +729,12 @@ class BayeuxServerImpl implements BayeuxServer
         $wildIds = $to->getChannelId()->getWilds();
         $wild_channels = array();
         for ( $i=count($wildIds); $i-- >0; ) {
-            $wild_channels[$i]=$this->_channels->get($wildIds[$i]);
+            if (isset($this->_channels[$wildIds[$i]])) {
+                $wild_channels[$i] = $this->_channels[$wildIds[$i]];
+            } else {
+                $wild_channels[$i] = null;
+            }
+
         }
 
         // Call the wild listeners
@@ -786,7 +812,8 @@ class BayeuxServerImpl implements BayeuxServer
         if ($to->isMeta())
         {
             foreach ($to->getListeners() as $listener) {
-                if ($listener instanceof BayeuxServerImpl\HandlerListener) {
+
+                if ($listener instanceof HandlerListener) {
                     $listener->onMessage($from, $mutable);
                 }
             }
@@ -795,7 +822,7 @@ class BayeuxServerImpl implements BayeuxServer
 
 
     /* ------------------------------------------------------------ */
-    public function extendReply(ServerSessionImpl $from, ServerSessionImpl $to, ServerMessage\Mutable $reply)
+    public function extendReply(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $reply)
     {
         if (!$this->extendSend($from, $to, $reply)) {
             return null;
@@ -853,40 +880,40 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
     /* ------------------------------------------------------------ */
-    protected function extendSend(ServerSessionImpl $from, ServerSessionImpl $to, ServerMessage\Mutable $message)
+    protected function extendSend(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $message)
     {
         if ($message->isMeta())
         {
-            $i = $this->_extensions->listIterator($this->_extensions.size());
-            while($i->hasPrevious())
+            $i = new \ArrayIterator(array_reverse($this->_extensions, true));
+            while($i->valid())
             {
-                if (!$i->previous()->sendMeta($to, $message))
+                if (!$i->next()->sendMeta($to, $message))
                 {
-                    if ($this->_logger->isDebugEnabled()) {
+                    /*if ($this->_logger->isDebugEnabled()) {
                         $this->_logger->debug("!  " . $message);
-                    }
+                    }*/
                     return false;
                 }
             }
         }
         else
         {
-            $i = $this->_extensions->listIterator($this->_extensions.size());
-            while($i->hasPrevious())
+            $i = new \ArrayIterator(array_reverse($this->_extensions, true));
+            while($i->valid())
             {
-                if (!$i->previous()->send($from, $to, $message))
+                if (!$i->next()->send($from, $to, $message))
                 {
-                    if ($this->_logger->isDebugEnabled()) {
+                    /*if ($this->_logger->isDebugEnabled()) {
                         $this->_logger->debug("!  " . $message);
-                    }
+                    }*/
                     return false;
                 }
             }
         }
 
-        if ($this->_logger->isDebugEnabled()) {
+        /*if ($this->_logger->isDebugEnabled()) {
             $this->_logger->debug("<  " . message);
-        }
+        }*/
         return true;
     }
 
@@ -979,14 +1006,14 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
     /* ------------------------------------------------------------ */
-    protected function createReply(ServerMessage\Mutable $message)
+    public function createReply(ServerMessage\Mutable $message)
     {
-        $reply=$this->newMessage();
+        $reply = $this->newMessage();
         $message->setAssociated($reply);
         $reply->setAssociated($message);
 
         $reply->setChannel($message->getChannel());
-        $id=$message->getId();
+        $id = $message->getId();
         if ($id != null) {
             $reply->setId($id);
         }
@@ -1045,213 +1072,3 @@ class BayeuxServerImpl implements BayeuxServer
 }
 
 
-/* ------------------------------------------------------------ */
-/* ------------------------------------------------------------ */
-abstract class HandlerListener implements ServerChannelListener
-{
-    protected function isSessionUnknown(ServerSession $session)
-    {
-        return $session == null || $this->getSession($session->getId()) == null;
-    }
-
-    public abstract function onMessage(ServerSessionImpl $from, ServerMessage\Mutable $message);
-}
-
-class HandshakeHandler extends HandlerListener
-{
-    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message)
-    {
-        if (session==null) {
-            $session = $this->newServerSession();
-        }
-
-        $reply=$this->createReply($message);
-
-        if ($this->_policy != null && !$this->_policy->canHandshake(BayeuxServerImplThis, $session, $message))
-        {
-            $this->error($reply,"403::Handshake denied");
-            // The user's SecurityPolicy may have customized the response's advice
-            $advice = $reply->getAdvice(true);
-            if (!$advice[Message::RECONNECT_FIELD]) {
-                $advice[Message::RECONNECT_FIELD] = Message::RECONNECT_NONE_VALUE;
-            }
-            return;
-        }
-
-        $session->handshake();
-        $this->addServerSession($session);
-
-        $reply->setSuccessful(true);
-        $reply[Message::CLIENT_ID_FIELD] = session.getId();
-        $reply[Message::VERSION_FIELD] = "1.0";
-        $reply[Message::MIN_VERSION_FIELD] = "1.0";
-        $reply[Message::SUPPORTED_CONNECTION_TYPES_FIELD]  = $this->getAllowedTransports();
-    }
-}
-
-class ConnectHandler extends HandlerListener
-{
-    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message)
-    {
-        $reply=$this->createReply($message);
-
-        if ($this->isSessionUnknown($session))
-        {
-            $this->unknownSession($reply);
-            return;
-        }
-
-        $session->connect();
-
-        // Handle incoming advice
-        $adviceIn = $message->getAdvice();
-        if ($adviceIn != null)
-        {
-            $timeout = $adviceIn["timeout"];
-            $session->updateTransientTimeout($timeout==null?-1:$timeout);
-            $interval = $adviceIn["interval"];
-            $session->updateTransientInterval($interval==null?-1:$interval);
-            // Force the server to send the advice, as the client may
-            // have forgotten it (for example because of a reload)
-            $session->reAdvise();
-        }
-        else
-        {
-            $session->updateTransientTimeout(-1);
-            $session->updateTransientInterval(-1);
-        }
-
-        // Send advice
-        $adviceOut = $session->takeAdvice();
-        if ($adviceOut!=null) {
-            $reply[Message::ADVICE_FIELD] = $adviceOut;
-        }
-
-        $reply->setSuccessful(true);
-    }
-}
-
-class SubscribeHandler extends HandlerListener
-{
-    public function onMessage(ServerSessionImpl $from, ServerMessage\Mutable $message)
-    {
-        $reply = $this->createReply($message);
-        if ($this->isSessionUnknown(from))
-        {
-            $this->unknownSession($reply);
-            return;
-        }
-
-        $subscription = $message[Message::SUBSCRIPTION_FIELD];
-        $reply[Message::SUBSCRIPTION_FIELD] = $subscription;
-
-        if ($subscription == null)
-        {
-            $this->error($reply, "403::subscription missing");
-        }
-        else
-        {
-            $channel = $this->getChannel($subscription);
-            if ($channel == null)
-            {
-                $creationResult = $this->isCreationAuthorized($from, $message, $subscription);
-                if ($creationResult instanceof Authorizer\Result\Denied)
-                {
-                    $denyReason = $creationResult->getReason();
-                    $this->error($reply, "403:" . $denyReason . ":create denied");
-                }
-                else
-                {
-                    $this->createIfAbsent($subscription);
-                    $channel = $this->getChannel($subscription);
-                }
-            }
-
-            if ($channel != null)
-            {
-                $subscribeResult = $this->isSubscribeAuthorized($channel, $from, $message);
-                if ($subscribeResult instanceof Authorizer\Result\Denied)
-                {
-                    $denyReason = $subscribeResult->getReason();
-                    $this->error($reply, "403:" . $denyReason . ":subscribe denied");
-                }
-                else
-                {
-                    // Reduces the window of time where a server-side expiration
-                    // or a concurrent disconnect causes the invalid client to be
-                    // registered as subscriber and hence being kept alive by the
-                    // fact that the channel references it.
-                    if (!$this->isSessionUnknown($from))
-                    {
-                        if ($from->isLocalSession() || !$channel->isMeta() && !$channel->isService())
-                        {
-                            if ($channel->subscribe($from)) {
-                                $reply->setSuccessful(true);
-                            } else {
-                                $this->error($reply, "403::subscribe failed");
-                            }
-                        }
-                        else
-                        {
-                            $reply->setSuccessful(true);
-                        }
-                    }
-                    else
-                    {
-                        $this->unknownSession($reply);
-                    }
-                }
-            }
-        }
-    }
-}
-
-class UnsubscribeHandler extends HandlerListener
-{
-    public function onMessage(ServerSessionImpl $from, ServerMessage\Mutable $message)
-    {
-        $reply=$this->createReply(message);
-        if ($this->isSessionUnknown($from))
-        {
-            $this->unknownSession($reply);
-            return;
-        }
-
-        $subscribe_id= $message[Message::SUBSCRIPTION_FIELD];
-        $reply[Message::SUBSCRIPTION_FIELD] =  $subscribe_id;
-        if ($subscribe_id==null)
-            $this->error(reply,"400::channel missing");
-        else
-        {
-            $reply[Message::SUBSCRIPTION_FIELD] = $subscribe_id;
-
-            $channel = $this->getChannel($subscribe_id);
-            if (channel==null)
-            error(reply,"400::channel missing");
-            else
-            {
-                if (from.isLocalSession() || !channel.isMeta() && !channel.isService())
-                channel.unsubscribe(from);
-                reply.setSuccessful(true);
-            }
-        }
-    }
-}
-
-class DisconnectHandler extends HandlerListener
-{
-    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message)
-    {
-        $reply = $this->createReply($message);
-        if ($this->isSessionUnknown($session))
-        {
-            $this->unknownSession($reply);
-            return;
-        }
-
-        $this->removeServerSession($session,false);
-        $this->session->flush();
-
-        $reply->setSuccessful(true);
-    }
-}

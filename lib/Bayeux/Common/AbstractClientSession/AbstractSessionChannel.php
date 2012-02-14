@@ -2,9 +2,9 @@
 
 namespace Bayeux\Common\AbstractClientSession;
 
+use Bayeux\Api\Client\ClientSessionChannel\ClientSessionChannelListener;
 use Bayeux\Api\Message;
 use Bayeux\Api\Client\ClientSessionChannel\MessageListener;
-use Bayeux\Api\Client\ClientSessionChannelListener;
 use Bayeux\Api\ChannelId;
 use Bayeux\Api\Client\ClientSessionChannel;
 
@@ -129,7 +129,7 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
         return $this->_id->isWild();
     }
 
-    protected function notifyMessageListeners(Message $message)
+    public function notifyMessageListeners(Message $message)
     {
         foreach ($this->_listeners as $listener)
         {

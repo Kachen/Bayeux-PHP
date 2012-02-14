@@ -117,21 +117,24 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
 
         $local = $this->_bayeux->newLocalSession("s0");
         $local->handshake();
-        exit;
+
         $session = $local->getServerSession();
 
-        $local.setAttribute("foo","bar");
-        $this->assertEquals("bar",local.getAttribute("foo"));
-        $this->assertEquals(null,session.getAttribute("foo"));
 
-        $session.setAttribute("bar","foo");
-        $this->assertEquals(null,local.getAttribute("bar"));
-        $this->assertEquals("foo",session.getAttribute("bar"));
+        $local->setAttribute("foo","bar");
 
-        $this->assertTrue($local->getAttributeNames().contains("foo"));
-        $this->assertFalse($local->getAttributeNames().contains("bar"));
-        $this->assertFalse($session->getAttributeNames().contains("foo"));
-        $this->assertTrue($session->getAttributeNames().contains("bar"));
+
+        $this->assertEquals("bar", $local->getAttribute("foo"));
+        $this->assertEquals(null, $session->getAttribute("foo"));
+
+        $session->setAttribute("bar","foo");
+        $this->assertEquals(null, $local->getAttribute("bar"));
+        $this->assertEquals("foo", $session->getAttribute("bar"));
+
+        $this->assertTrue(in_array("foo", $local->getAttributeNames()));
+        $this->assertFalse(in_array("bar", $local->getAttributeNames()));
+        $this->assertFalse(in_array("foo", $session->getAttributeNames()));
+        $this->assertTrue(in_array("bar", $session->getAttributeNames()));
 
         $this->assertEquals("bar", $local->removeAttribute("foo"));
         $this->assertEquals(null, $local->removeAttribute("foo"));

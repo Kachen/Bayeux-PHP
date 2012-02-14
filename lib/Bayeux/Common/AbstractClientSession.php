@@ -22,14 +22,14 @@ abstract class AbstractClientSession implements ClientSession
     /* ------------------------------------------------------------ */
     protected function __construct()
     {
-        $this->_batch = new AtomicInteger();
-        $this->_idGen = new AtomicInteger(0);
+        $this->_batch;// = new AtomicInteger();
+        $this->_idGen;// = new AtomicInteger(0);
     }
 
     /* ------------------------------------------------------------ */
     protected function newMessageId()
     {
-        return $this->_idGen->incrementAndGet();
+        return ++$this->_idGen;
     }
 
     /* ------------------------------------------------------------ */
@@ -94,12 +94,20 @@ abstract class AbstractClientSession implements ClientSession
     /* ------------------------------------------------------------ */
     public function getChannel($channelId)
     {
-        $channel = $this->_channels[$channelId];
-        if ($channel==null)
+        if (isset($this->_channels[$channelId])) {
+            $channel = $this->_channels[$channelId];
+        } else {
+            $channel = null;
+        }
+
+        if ($channel === null)
         {
             $id = $this->newChannelId($channelId);
             $new_channel=$this->newChannel($id);
-            $channel=$this->_channels->putIfAbsent($channelId, $new_channel);
+            if (empty($this->_channels[$channelId])) {
+                $this->_channels[$channelId] = $new_channel;
+            }
+
             if ($channel == null) {
                 $channel = $new_channel;
             }
@@ -156,7 +164,10 @@ abstract class AbstractClientSession implements ClientSession
     /* ------------------------------------------------------------ */
     public function getAttribute($name)
     {
-        return $this->_attributes[$name];
+        if (isset($this->_attributes[$name])) {
+            return $this->_attributes[$name];
+        }
+        return null;
     }
 
     /* ------------------------------------------------------------ */
@@ -168,6 +179,10 @@ abstract class AbstractClientSession implements ClientSession
     /* ------------------------------------------------------------ */
     public function removeAttribute($name)
     {
+        if (! isset($this->_attributes[$name])) {
+            return null;
+        }
+
         $old = $this->_attributes[$name];
         unset($this->_attributes[$name]);
         return $old;

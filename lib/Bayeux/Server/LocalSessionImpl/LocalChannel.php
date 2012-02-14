@@ -1,7 +1,10 @@
 <?php
 
-namespace Bayeux\Server;
+namespace Bayeux\Server\LocalSessionImpl;
 
+use Bayeux\Api\ChannelId;
+use Bayeux\Server\BayeuxServerImpl;
+use Bayeux\Server\LocalSessionImpl;
 use Bayeux\Api\Message;
 use Bayeux\Api\Channel;
 use Bayeux\Common\AbstractClientSession\AbstractSessionChannel;
@@ -24,6 +27,8 @@ class LocalChannel extends AbstractSessionChannel
 
     public function init(LocalSessionImpl $localSession, BayeuxServerImpl $bayeux, &$session) {
         $this->_localSession = $localSession;
+        //$localSession->setSession($this, $session);
+
         $this->_bayeux = $bayeux;
         $this->_session = $session;
     }

@@ -1,7 +1,10 @@
 <?php
 
-namespace Bayeux\Api\Server;
+namespace Bayeux\Api\Server\Authorizer;
 
+use Bayeux\Api\Server\Authorizer\Result\Ignored;
+use Bayeux\Api\Server\Authorizer\Result\Granted;
+use Bayeux\Api\Server\Authorizer\Result\Denied;
 
 /**
  * <p>The result of an authentication request.</p>

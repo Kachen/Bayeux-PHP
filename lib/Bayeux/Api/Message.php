@@ -41,7 +41,7 @@ interface Message //extends Map<String, Object>
      * @return the advice of the message
      */
     //Map<String, Object> getAdvice();
-    public function getAdvice();
+    public function getAdvice($create = null);
 
     /**
      * Convenience method to retrieve the {@link #CHANNEL_FIELD}.
@@ -87,13 +87,13 @@ interface Message //extends Map<String, Object>
      * @see #getData()
      */
     //Map<String, Object> getDataAsMap();
-    public function getDataAsMap();
+    public function getDataAsMap($create = null);
 
     /**
      * Convenience method to retrieve the {@link #EXT_FIELD}
      * @return the ext of the message
      */
-    public function getExt();
+    public function getExt($create = null);
 
     /**
      * Convenience method to retrieve the {@link #ID_FIELD}
