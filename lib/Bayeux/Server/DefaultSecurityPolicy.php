@@ -2,6 +2,8 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\ChannelId;
+
 use Bayeux\Api\Server\ServerChannel;
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Api\Server\ServerSession;
@@ -12,7 +14,7 @@ class DefaultSecurityPolicy implements SecurityPolicy
 {
     public function canCreate(BayeuxServer $server, ServerSession $session, $channelId, ServerMessage $message)
     {
-        return session!=null && session.isLocalSession() || !ChannelId.isMeta(channelId);
+        return $session != null && $session->isLocalSession() || !ChannelId::staticIsMeta($channelId);
     }
 
     public function canHandshake(BayeuxServer $server, ServerSession $session, ServerMessage $message)
@@ -27,7 +29,7 @@ class DefaultSecurityPolicy implements SecurityPolicy
 
     public function canSubscribe(BayeuxServer $server, ServerSession $session, ServerChannel $channel, ServerMessage $messsage)
     {
-        return $session!=null && $session->isLocalSession() || !$channel->isMeta();
+        return $session != null && $session->isLocalSession() || !$channel->isMeta();
     }
 
 }

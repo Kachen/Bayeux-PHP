@@ -2,6 +2,7 @@
 
 namespace Bayeux\Api\Server;
 
+use Bayeux\Api\Server\Authorizer\Operation;
 use Bayeux\Api\ChannelId;
 
 // ========================================================================

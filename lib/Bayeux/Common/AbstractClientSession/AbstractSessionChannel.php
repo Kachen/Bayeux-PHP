@@ -63,7 +63,7 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
         $added = $this->_subscriptions[] = $listener;
         if ($added)
         {
-            $count = $this->_subscriptionCount->incrementAndGet();
+            $count = ++$this->_subscriptionCount; //->incrementAndGet(); FIXME: ATOMIC
             if ($count == 1) {
                 $this->sendSubscribe();
             }
@@ -78,11 +78,12 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
                 $this->unsubscribe($listener);
             }
         } else {
-            $removed = $this->_subscriptions.remove(listener);
-            if ($removed)
+            $key = array_search($listener, $this->_subscriptions);
+            if ($key !== false)
             {
-                $count = $this->_subscriptionCount->decrementAndGet();
-                if (count == 0) {
+                unset($this->_subscriptions[$key]);
+                $count = --$this->_subscriptionCount;
+                if ($count == 0) {
                     $this->sendUnSubscribe();
                 }
             }

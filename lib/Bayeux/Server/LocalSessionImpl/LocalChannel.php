@@ -49,12 +49,12 @@ class LocalChannel extends AbstractSessionChannel
 
         $message = $this->_bayeux->newMessage();
         $message->setChannel($this->getId());
-        $message->setData(data);
+        $message->setData($data);
         if ($messageId != null) {
             $message->setId($messageId);
         }
 
-        $this->send($this->_session, $message);
+        $this->_localSession->send($this->_session, $message);
         $message->setAssociated(null);
     }
 
@@ -71,10 +71,10 @@ class LocalChannel extends AbstractSessionChannel
         $message = $this->_bayeux->newMessage();
         $message->setChannel(Channel::META_SUBSCRIBE);
         $message[Message::SUBSCRIPTION_FIELD] =  $this->getId();
-        $message->setClientId(LocalSessionImpl.this.getId());
-        $message->setId($this->newMessageId());
+        $message->setClientId($this->_localSession->getId());
+        $message->setId($this->_localSession->newMessageId());
 
-        $this->send($this->_session, $message);
+        $this->_localSession->send($this->_session, $message);
         $message->setAssociated(null);
     }
 
@@ -84,9 +84,9 @@ class LocalChannel extends AbstractSessionChannel
         $message = $this->_bayeux->newMessage();
         $message->setChannel(Channel::META_UNSUBSCRIBE);
         $message->put(Message::SUBSCRIPTION_FIELD, $this->getId());
-        $message->setId(newMessageId());
+        $message->setId($this->_localSession->newMessageId());
 
-        $this->send(_session,message);
+        $this->_localSession->send($this->_session, $message);
         $message->setAssociated(null);
     }
 }

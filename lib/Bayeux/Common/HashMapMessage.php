@@ -28,19 +28,25 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
 
     public function getClientId()
     {
-        return (String)get(CLIENT_ID_FIELD);
+        return $this[self::CLIENT_ID_FIELD];
     }
 
     public function getData()
     {
-        return get(DATA_FIELD);
+        if (isset($this[self::DATA_FIELD])) {
+            return $this[self::DATA_FIELD];
+        }
+        return null;
     }
 
     public function getId()
     {
         // Support also old-style ids of type long
-        $id = $this[self::ID_FIELD];
-        return $id == null ? null : $id;
+        if (isset($this[self::ID_FIELD])) {
+            return $this[self::ID_FIELD];
+        }
+
+        return null;
     }
 
     public function getJSON()
@@ -63,7 +69,7 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
                 $this[self::ADVICE_FIELD] = $advice;
             }
 
-            return $advice;
+            //return $advice;
         }
 
         if ($create && $advice == null)
@@ -88,7 +94,7 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
                 $data = $jsonParser.parse(data.toString());
                 $this->put(DATA_FIELD, data);
             }
-            return $data;
+            //return $data;
         }
 
         if ($create && $data == null)
@@ -108,7 +114,7 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
                 $ext = jsonParser.parse($ext.toString());
                 $this[self::EXT_FIELD] = $ext;
             }
-            return $ext;
+            //return $ext;
         }
 
         if ($create && $ext == null) {
@@ -154,12 +160,12 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
         }
     }
 
-    public function setData($data)
+    public function setData($data = null)
     {
-        if ($data==null) {
-            $this->remove(DATA_FIELD);
+        if ($data == null) {
+            unset($this[self::DATA_FIELD]);
         } else {
-            $this->put(DATA_FIELD, $data);
+            $this[self::DATA_FIELD] = $data;
         }
     }
 

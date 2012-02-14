@@ -2,6 +2,9 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Message;
+
+use Bayeux\Api\Client\ClientSessionChannel;
 use Bayeux\Api\Server\ServerSession;
 use Bayeux\Api\Server\ServerChannel;
 use Bayeux\Api\Server\ConfigurableServerChannel;
@@ -140,17 +143,15 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(null, $local->removeAttribute("foo"));
         $this->assertEquals("foo", $session->removeAttribute("bar"));
         $this->assertEquals(null, $local->removeAttribute("bar"));
-
     }
-}
-/*
+
 
     public function testLocalSessions() //throws Exception
     {
-        $session0 = $this->_bayeux.newLocalSession("s0");
-        $this->assertTrue($session0->toString().indexOf("s0?")>=0);
-        $session0.handshake();
-        $this->assertTrue($session0->toString().indexOf("s0_")>=0);
+        $session0 = $this->_bayeux->newLocalSession("s0");
+        $this->assertEquals(strpos($session0->toString(), "s0?"), 2);
+        $session0->handshake();
+        $this->assertEquals(strpos($session0->toString(), "s0_"), 2);
 
         $session1 = $this->_bayeux->newLocalSession("s1");
         $session1->handshake();
@@ -159,59 +160,59 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
 
         $events = new \SplQueue();
 
-        ClientSessionChannel.MessageListener listener = new ClientSessionChannel.MessageListener()
-        {
-            public void onMessage(ClientSessionChannel channel, Message message)
-            {
-                events.add(channel.getSession().getId());
-                events.add(message.getData().toString());
-            }
-        };
+        $listener = new TestMessageListener($events);
 
-        $session0.getChannel("/foo/bar").subscribe(listener);
-        $session0.getChannel("/foo/bar").subscribe(listener);
-        $session1.getChannel("/foo/bar").subscribe(listener);
-        $session2.getChannel("/foo/bar").subscribe(listener);
 
-        System.err.println(_bayeux.dump());
+        $session0->getChannel("/foo/bar")->subscribe($listener);
+        $session0->getChannel("/foo/bar")->subscribe($listener);
+        $session1->getChannel("/foo/bar")->subscribe($listener);
+        $session2->getChannel("/foo/bar")->subscribe($listener);
 
-        $this->assertEquals(3,_bayeux.getChannel("/foo/bar").getSubscribers().size());
 
-        $session0.getChannel("/foo/bar").unsubscribe(listener);
-        $this->assertEquals(3,_bayeux.getChannel("/foo/bar").getSubscribers().size());
-        $session0.getChannel("/foo/bar").unsubscribe(listener);
-        $this->assertEquals(2,_bayeux.getChannel("/foo/bar").getSubscribers().size());
+        //System.err.println($this->_bayeux->dump());
 
-        $foobar0=session0.getChannel("/foo/bar");
-        $foobar0.subscribe(listener);
-        $foobar0.subscribe(listener);
+        $this->assertEquals(3, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
 
-        $foostar0=session0.getChannel("/foo/*");
-        $foostar0.subscribe(listener);
 
-        $this->assertEquals(3,_bayeux.getChannel("/foo/bar").getSubscribers().size());
-        $this->assertEquals(session0,foobar0.getSession());
-        $this->assertEquals("/foo/bar",foobar0.getId());
-        $this->assertEquals(false,foobar0.isDeepWild());
-        $this->assertEquals(false,foobar0.isWild());
-        $this->assertEquals(false,foobar0.isMeta());
-        $this->assertEquals(false,foobar0.isService());
 
-        $foobar0.publish("hello");
+        $session0->getChannel("/foo/bar")->unsubscribe($listener);
+        $this->assertEquals(3, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
+        $session0->getChannel("/foo/bar")->unsubscribe($listener);
+        $this->assertEquals(2, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
 
-        $this->assertEquals(session0.getId(),events.poll());
-        $this->assertEquals("hello",events.poll());
-        $this->assertEquals(session0.getId(),events.poll());
-        $this->assertEquals("hello",events.poll());
-        $this->assertEquals(session0.getId(),events.poll());
-        $this->assertEquals("hello",events.poll());
-        $this->assertEquals(session1.getId(),events.poll());
-        $this->assertEquals("hello",events.poll());
-        $this->assertEquals(session2.getId(),events.poll());
-        $this->assertEquals("hello",events.poll());
-        $foostar0.unsubscribe(listener);
+        $foobar0 = $session0->getChannel("/foo/bar");
+        $foobar0->subscribe($listener);
+        $foobar0->subscribe($listener);
 
-        session1.batch(new Runnable()
+        $foostar0=$session0->getChannel("/foo/*");
+        $foostar0->subscribe($listener);
+
+        $this->assertEquals(3, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
+        $this->assertEquals($session0, $foobar0->getSession());
+        $this->assertEquals("/foo/bar", $foobar0->getId());
+        $this->assertEquals(false, $foobar0->isDeepWild());
+        $this->assertEquals(false, $foobar0->isWild());
+        $this->assertEquals(false, $foobar0->isMeta());
+        $this->assertEquals(false, $foobar0->isService());
+        $foobar0->publish("hello");
+
+
+        $this->assertEquals($session0->getId(), $events->dequeue());
+        $this->assertEquals("hello", $events->dequeue);
+        $this->assertEquals($session0.getId(), $events->dequeue());
+        $this->assertEquals("hello", $events->dequeue);
+        $this->assertEquals($session0->getId(), $events->dequeue());
+        $this->assertEquals("hello", $events->dequeue);
+        $this->assertEquals($session1->getId(), $events->dequeue());
+        $this->assertEquals("hello", $events->dequeue);
+        $this->assertEquals($session2->getId(), $events->dequeue());
+        $this->assertEquals("hello", $events->dequeue());
+        $foostar0->unsubscribe($listener);
+
+
+        exit;
+
+/*         session1.batch(new Runnable()
         {
             public void run()
             {
@@ -220,7 +221,7 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
                 assertEquals(null,events.poll());
                 foobar1.publish("part2");
             }
-        });
+        }); */
 
         $this->assertEquals(session1.getId(),events.poll());
         $this->assertEquals("part1",events.poll());
@@ -268,7 +269,8 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
         $this->assertFalse(session2.isConnected());
         $this->assertFalse(ss2.isConnected());
     }
-
+}
+    /*
     public function testExtensions() //throws Exception
     {
         final Queue<String> events = new ConcurrentLinkedQueue<String>();
@@ -460,3 +462,19 @@ class SubListener extends AListener implements BayeuxServer\SubscriptionListener
     }
 
 }
+
+class TestMessageListener implements ClientSessionChannel\MessageListener
+{
+
+    private $events;
+
+    public function __construct(\SplQueue $events) {
+        $this->events = $events;
+    }
+
+    public function onMessage(ClientSessionChannel $channel, Message $message)
+    {
+        $this->events->enqueue($channel->getSession()->getId());
+        $this->events->enqueue($message->getData()->toString());
+    }
+};

@@ -4,7 +4,6 @@ namespace Bayeux\Server\BayeuxServerImpl;
 
 
 use Bayeux\Api\Message;
-
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Server\ServerSessionImpl;
 

@@ -130,10 +130,10 @@ class ChannelId
         if ($obj instanceof ChannelId)
         {
             $id = $obj;
-            if ($id->depth()== $this->depth())
+            if ($id->depth() == $this->depth())
             {
                 for ($i = $id->depth(); $i-- > 0;) {
-                    if (!$id->getSegment($i) == $this->getSegment($i)) {
+                    if (! ($id->getSegment($i) == $this->getSegment($i))) {
                         return false;
                     }
                 }
@@ -161,22 +161,22 @@ class ChannelId
             case 0:
                 return $this->equals($name);
             case 1:
-                if (count($name->_segments) != count($this->_segments)) {
+                if ($name->depth() != $this->depth()) {
                     return false;
                 }
-                for ($i=count($this->_segments) - 1; $i-- > 0;) {
-                    if (!$this->_segments[$i] == $name->_segments[$i]) {
+                for ($i=$this->depth() - 1; $i-- > 0;) {
+                    if (!$this->getSegment($i) == $name->getSegment($i)) {
                         return false;
                     }
                 }
                 return true;
 
             case 2:
-                if (count($name->_segments) < count($this->_segments)) {
+                if ($name->depth() < $this->depth()) {
                     return false;
                 }
                 for ($i=count($this->_segments) - 1; $i-- > 0;) {
-                    if (!$this->_segments[$i] == $name->_segments[$i]) {
+                    if (! ($this->getSegment($i) == $name->getSegment($i))) {
                         return false;
                     }
                 }
@@ -205,12 +205,13 @@ class ChannelId
     /* ------------------------------------------------------------ */
     public function isAncestorOf(ChannelId $id)
     {
-        if ($this->isWild() || $this->depth() >= $id->depth())
+        if ($this->isWild() || $this->depth() >= $id->depth()) {
             return false;
+        }
 
-        for ($i=$this->_segments; $i--> 0;)
+        for ($i = $this->depth(); $i-- > 0;)
         {
-            if (!$this->_segments[$i] == $id->_segments[$i]) {
+            if (! ($this->getSegment($i) == $id->getSegment($i))) {
                 return false;
             }
         }
@@ -224,12 +225,12 @@ class ChannelId
             return false;
         }
 
-        for ($i = $this->depth(); $i-- > 0;)
-        {
-            if (! ($this->getSegment($i) == $id->getSegment($i)) ) {
+        for ($i = $this->depth(); $i-- > 0; ) {
+            if (! ($this->getSegment($i) == $id->getSegment($i))) {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -246,7 +247,10 @@ class ChannelId
         if ($i > $this->depth()) {
             return null;
         }
-        return $this->_segments[$i];
+        if (isset($this->_segments[$i])) {
+            return $this->_segments[$i];
+        }
+        return null;
     }
 
     /* ------------------------------------------------------------ */

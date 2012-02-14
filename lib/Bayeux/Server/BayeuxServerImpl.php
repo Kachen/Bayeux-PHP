@@ -2,6 +2,7 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Server\Authorizer;
 use Bayeux\Server\BayeuxServerImpl\HandlerListener;
 use Bayeux\Server\BayeuxServerImpl\DisconnectHandler;
 use Bayeux\Server\BayeuxServerImpl\UnsubscribeHandler;
@@ -9,7 +10,6 @@ use Bayeux\Server\BayeuxServerImpl\SubscribeHandler;
 use Bayeux\Server\BayeuxServerImpl\ConnectHandler;
 use Bayeux\Server\BayeuxServerImpl\HandshakeHandler;
 use Bayeux\Api\Client\MessageListener;
-use Bayeux\Api\Server\Authorizer;
 use Bayeux\Api\Server\ServerSession;
 use Bayeux\Api\Server\ServerChannel;
 use Bayeux\Api\ChannelId;
@@ -485,7 +485,11 @@ class BayeuxServerImpl implements BayeuxServer
      */
     public function getChannel($channelId)
     {
-        return $this->_channels[$channelId];
+        if (isset($this->_channels[$channelId])) {
+            return $this->_channels[$channelId];
+        }
+
+        return null;
     }
 
     /* ------------------------------------------------------------ */
@@ -556,7 +560,7 @@ class BayeuxServerImpl implements BayeuxServer
                     $creationResult = $this->isCreationAuthorized($session, $message, $channelName);
                     if ($creationResult instanceof Authorizer\Result\Denied)
                     {
-                        $reply = createReply(message);
+                        $reply = $this->createReply($message);
                         $denyReason = $creationResult->getReason();
                         $this->error($reply, "403:" . $denyReason . ":create denied");
                     }
@@ -618,7 +622,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $reply;
     }
 
-    private function isPublishAuthorized(ServerChannel $channel, ServerSession $session, ServerMessage $message)
+    public function isPublishAuthorized(ServerChannel $channel, ServerSession $session, ServerMessage $message)
     {
         if ($this->_policy != null && !$this->_policy->canPublish($this, $session, $channel, $message))
         {
@@ -628,7 +632,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->isOperationAuthorized(Authorizer\Operation::PUBLISH, $session, $message, $channel->getChannelId());
     }
 
-    private function isSubscribeAuthorized(ServerChannel $channel, ServerSession $session, ServerMessage $message)
+    public function isSubscribeAuthorized(ServerChannel $channel, ServerSession $session, ServerMessage $message)
     {
         if ($this->_policy != null && !$this->_policy->canSubscribe($this, $session, $channel, $message))
         {
@@ -638,17 +642,17 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->isOperationAuthorized(Authorizer\Operation::SUBSCRIBE, $session, $message, $channel->getChannelId());
     }
 
-    private function isCreationAuthorized(ServerSession $session, ServerMessage $message, $channel)
+    public function isCreationAuthorized(ServerSession $session, ServerMessage $message, $channel)
     {
-        if ($this->_policy != null && !$this->_policy->canCreate(this, $session, $channel, $message))
+        if ($this->_policy != null && !$this->_policy->canCreate($this, $session, $channel, $message))
         {
             //$this->_logger->warn("{} denied Create@{} by {}", $session, $message->getChannel(), $this->_policy);
             return Authorizer\Result::deny("denied_by_security_policy");
         }
-        return $this->isOperationAuthorized(\Authorizer\Operation::CREATE, $session, $message, new ChannelId($channel));
+        return $this->isOperationAuthorized(Authorizer\Operation::CREATE, $session, $message, new ChannelId($channel));
     }
 
-    private function isOperationAuthorized(Authorizer\Operation $operation, ServerSession $session, ServerMessage $message, ChannelId $channelId)
+    private function isOperationAuthorized(/*Authorizer\Operation*/ $operation, ServerSession $session, ServerMessage $message, ChannelId $channelId)
     {
         $channels = array();
         foreach ($channelId->getWilds() as $wildName)
@@ -708,7 +712,7 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
     /* ------------------------------------------------------------ */
-    protected function doPublish(ServerSessionImpl $from, ServerChannelImpl $to, ServerMessage\Mutable $mutable)
+    public function doPublish(ServerSessionImpl $from, ServerChannelImpl $to, ServerMessage\Mutable $mutable)
     {
         // check the parent channels
         $parent = $to->getChannelId()->getParent();
@@ -880,7 +884,7 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
     /* ------------------------------------------------------------ */
-    protected function extendSend(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $message)
+    public function extendSend(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $message)
     {
         if ($message->isMeta())
         {

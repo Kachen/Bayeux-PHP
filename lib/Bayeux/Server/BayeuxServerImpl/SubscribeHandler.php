@@ -2,16 +2,16 @@
 
 namespace Bayeux\Server\BayeuxServerImpl;
 
+use Bayeux\Api\Message;
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Server\ServerSessionImpl;
-
 
 class SubscribeHandler extends HandlerListener
 {
     public function onMessage(ServerSessionImpl $from, ServerMessage\Mutable $message)
     {
         $reply = $this->createReply($message);
-        if ($this->isSessionUnknown(from))
+        if ($this->isSessionUnknown($from))
         {
             $this->unknownSession($reply);
             return;

@@ -179,7 +179,7 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
      * @param session The ServerSession to send as. This normally the current server session, but during handshake it is a proposed server session.
      * @param message The message to send.
      */
-    protected function send(ServerSessionImpl $session, ServerMessage\Mutable $message)
+    public function send(ServerSessionImpl $session, ServerMessage\Mutable $message)
     {
         if ($this->isBatching()) {
             $this->_queue->enqueue($message);

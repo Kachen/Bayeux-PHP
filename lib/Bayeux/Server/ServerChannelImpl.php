@@ -3,6 +3,8 @@
 namespace Bayeux\Server;
 
 
+use Bayeux\Api\Server\LocalSession;
+
 use Bayeux\Api\Server\BayeuxServer;
 use Bayeux\Api\Server\Authorizer;
 use Bayeux\Api\Server\ServerChannel\ServerChannelListener;
@@ -236,11 +238,18 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
             throw new \Exception('Wild publish');
         }
 
-        $session = $from instanceof ServerSessionImpl ?
-            $from
-            : $from instanceof LocalSession ?
-                $from->getServerSession()
-                : null;
+        if ($from instanceof ServerSessionImpl) {
+            $session = $from;
+
+        } else if ($from instanceof LocalSession ) {
+            $session = $from->getServerSession();
+
+        } else {
+            $session = null;
+        }
+
+//        $session = $from instanceof ServerSessionImpl ? $from :$from instanceof LocalSession ? $from->getServerSession()
+  //              : null;
 
         // Do not leak the clientId to other subscribers
         // as we are now "sending" this message
@@ -379,7 +388,7 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
     /* ------------------------------------------------------------ */
     public function getAuthorizers()
     {
-        return Collections.unmodifiableList(_authorizers);
+        return $this->_authorizers;
     }
 
     /* ------------------------------------------------------------ */

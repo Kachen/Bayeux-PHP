@@ -166,7 +166,7 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    protected function doDeliver(ServerSession $from, ServerMessage\Mutable $mutable)
+    public  function doDeliver(ServerSession $from, ServerMessage\Mutable $mutable)
     {
         $message = null;
         if ($mutable->isMeta())
@@ -180,8 +180,9 @@ class ServerSessionImpl implements ServerSession
             $message = $this->extendSendMessage($mutable);
         }
 
-        if ($message==null)
-        return;
+        if ($message == null) {
+            return;
+        }
 
         foreach ($this->_listeners as $listener)
         {
@@ -294,13 +295,13 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function getLocalSession()
     {
-        return _localSession;
+        return $this->_localSession;
     }
 
     /* ------------------------------------------------------------ */
     public function isLocalSession()
     {
-        return _localSession!=null;
+        return $this->_localSession!=null;
     }
 
     /* ------------------------------------------------------------ */
@@ -356,7 +357,7 @@ class ServerSessionImpl implements ServerSession
     public function takeQueue()
     {
         $copy = array();
-            if (!$this->_queue->isEmpty())
+            if (empty($this->_queue))
             {
                 foreach ($this->_listeners as $listener)
                 {
@@ -424,7 +425,7 @@ class ServerSessionImpl implements ServerSession
         }
 
         // do local delivery
-        if  ($this->_localSession!=null && $this->_queue.size()>0)
+        if  ($this->_localSession != null && count($this->_queue) > 0)
         {
             foreach ($this->takeQueue() as $msg )
             {

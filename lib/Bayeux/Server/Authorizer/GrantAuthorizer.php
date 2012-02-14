@@ -2,6 +2,13 @@
 
 namespace Bayeux\Server\Authorizer;
 
+use Bayeux\Api\Server\Authorizer\Result;
+use Bayeux\Api\Server\ServerMessage;
+use Bayeux\Api\Server\ServerSession;
+use Bayeux\Api\ChannelId;
+use Bayeux\Api\Server\Authorizer;
+use Bayeux\Api\Server\Authorizer\Operation;
+
 /**
  * <p>This {@link Authorizer} implementation grants permission
  * for a set of operations defined at construction time.</p>
@@ -12,37 +19,91 @@ class GrantAuthorizer implements Authorizer
     /**
      * Grants {@link Operation#CREATE} authorization
      */
-    public static $GRANT_CREATE = new GrantAuthorizer(EnumSet.of(Operation.CREATE));
+    public static $GRANT_CREATE;
 
     /**
      * Grants {@link Operation#SUBSCRIBE} authorization
      */
-    public static $GRANT_SUBSCRIBE = new GrantAuthorizer(EnumSet.of(Operation.SUBSCRIBE));
+    public static $GRANT_SUBSCRIBE;
 
     /**
      * Grants {@link Operation#PUBLISH} authorization
      */
-    public static $GRANT_PUBLISH = new GrantAuthorizer(EnumSet.of(Operation.PUBLISH));
+    public static $GRANT_PUBLISH;
 
     /**
      * Grants {@link Operation#CREATE} and {@link Operation#SUBSCRIBE} authorization
      */
-    public static $GRANT_CREATE_SUBSCRIBE = new GrantAuthorizer(EnumSet.of(Operation.CREATE, Operation.SUBSCRIBE));
+    public static $GRANT_CREATE_SUBSCRIBE;
 
     /**
      * Grants {@link Operation#SUBSCRIBE} and {@link Operation#PUBLISH} authorization
      */
-    public static $GRANT_SUBSCRIBE_PUBLISH = new GrantAuthorizer(EnumSet.of(Operation.SUBSCRIBE, Operation.PUBLISH));
+    public static $GRANT_SUBSCRIBE_PUBLISH;
 
     /**
      * Grants {@link Operation#CREATE}, {@link Operation#SUBSCRIBE} and {@link Operation#PUBLISH} authorization
      */
-    public static $GRANT_ALL = new GrantAuthorizer(EnumSet.allOf(Operation.class));
+    public static $GRANT_ALL;
 
     /**
      * Grants no authorization, the authorization request is ignored
      */
-    public static $GRANT_NONE = new GrantAuthorizer(EnumSet.noneOf(Operation.class));
+    public static $GRANT_NONE;
+
+
+    public static function GRANT_CREATE() {
+        if (self::$GRANT_CREATE === null) {
+            self::$GRANT_CREATE = new self(Operation::CREATE);;
+        }
+        return self::$GRANT_CREATE;
+    }
+
+    public static function GRANT_SUBSCRIBE() {
+        if (self::$GRANT_SUBSCRIBE === null) {
+            self::$GRANT_SUBSCRIBE = new self(Operation::SUBSCRIBE);
+        }
+        return self::$GRANT_SUBSCRIBE;
+    }
+
+    public static function GRANT_PUBLISH() {
+        if (self::$GRANT_PUBLISH === null) {
+            self::$GRANT_PUBLISH = new GrantAuthorizer(Operation::PUBLISH);
+        }
+        return self::$GRANT_PUBLISH;
+    }
+
+    public static function GRANT_CREATE_SUBSCRIBE() {
+        throw new \Exception("validar esse tipo");
+        if (self::$GRANT_CREATE_SUBSCRIBE === null) {
+            self::$GRANT_CREATE_SUBSCRIBE = new GrantAuthorizer(Operation::CREATE + Operation::SUBSCRIBE);
+        }
+        return self::$GRANT_CREATE_SUBSCRIBE;
+    }
+
+    public static function GRANT_SUBSCRIBE_PUBLISH() {
+        throw new \Exception("validar esse tipo");
+        if (self::$GRANT_SUBSCRIBE_PUBLISH === null) {
+            self::$GRANT_SUBSCRIBE_PUBLISH = new GrantAuthorizer(Operation::SUBSCRIBE, Operation::PUBLISH);
+        }
+        return self::$GRANT_SUBSCRIBE_PUBLISH;
+    }
+
+    public static function GRANT_ALL() {
+        throw new \Exception("validar esse tipo");
+        if (self::$GRANT_ALL === null) {
+            self::$GRANT_ALL = new GrantAuthorizer(Operation::CCLASS);
+        }
+        return self::$GRANT_ALL;
+    }
+
+    public static function GRANT_NONE() {
+        if (self::$GRANT_NONE === null) {
+            throw new \Exception("validar esse tipo");
+            //self::$GRANT_NONE = new GrantAuthorizer(EnumSet.noneOf(Operation.class));
+        }
+        return self::$GRANT_NONE;
+    }
 
     private $_operations;
 
@@ -53,7 +114,7 @@ class GrantAuthorizer implements Authorizer
 
     public function authorize(Operation $operation, ChannelId $channel, ServerSession $session, ServerMessage $message)
     {
-        if ($this->_operations->contains($operation)) {
+        if (in_array($operation, $this->_operations)) {
             return Result::grant();
         }
         return Result::ignore();

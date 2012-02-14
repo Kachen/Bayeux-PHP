@@ -1,6 +1,6 @@
 <?php
 
-namespace Bayeux\Api\Server;
+namespace Bayeux\Api\Server\Authorizer;
 /**
 * Operations that are to be authorized on a channel
 */
@@ -18,4 +18,6 @@ final class Operation {
      * The operation to publish messages to a channel
      */
     const PUBLISH = 2;
+
+    const CCLASS = 3;
 }

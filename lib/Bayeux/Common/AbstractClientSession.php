@@ -22,12 +22,12 @@ abstract class AbstractClientSession implements ClientSession
     /* ------------------------------------------------------------ */
     protected function __construct()
     {
-        $this->_batch;// = new AtomicInteger();
-        $this->_idGen;// = new AtomicInteger(0);
+        $this->_batch = 0;// = new AtomicInteger();
+        $this->_idGen = 0;// = new AtomicInteger(0);
     }
 
     /* ------------------------------------------------------------ */
-    protected function newMessageId()
+    public function newMessageId()
     {
         return ++$this->_idGen;
     }
@@ -158,7 +158,7 @@ abstract class AbstractClientSession implements ClientSession
     /* ------------------------------------------------------------ */
     protected function isBatching()
     {
-        return $this->_batch.get() > 0;
+        return $this->_batch > 0;
     }
 
     /* ------------------------------------------------------------ */

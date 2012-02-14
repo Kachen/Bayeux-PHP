@@ -60,7 +60,7 @@ class ServerMessageImpl extends HashMapMessage implements ServerMessage\Mutable
         if ($this->_json != null) {
             throw new UnsupportedOperationException();
         }
-        return parent::put($key, $value);
+        return $this[$key] =  $value;
     }
 
     //@Override
