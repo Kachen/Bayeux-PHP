@@ -2,6 +2,7 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Common\AbstractTransport;
 use Bayeux\Api\Server\ServerTransport;
 
 /* ------------------------------------------------------------ */
@@ -14,28 +15,23 @@ use Bayeux\Api\Server\ServerTransport;
  * value for the option.
  *
  */
-abstract class AbstractServerTransport implements ServerTransport
+abstract class AbstractServerTransport extends AbstractTransport implements ServerTransport
 {
-    const TIMEOUT_OPTION="timeout";
-    const INTERVAL_OPTION="interval";
-    const MAX_INTERVAL_OPTION="maxInterval";
-    const MAX_LAZY_OPTION="maxLazyTimeout";
-    const META_CONNECT_DELIVERY_OPTION="metaConnectDeliverOnly";
+    const TIMEOUT_OPTION = "timeout";
+    const INTERVAL_OPTION = "interval";
+    const MAX_INTERVAL_OPTION = "maxInterval";
+    const MAX_LAZY_OPTION = "maxLazyTimeout";
+    const META_CONNECT_DELIVERY_OPTION = "metaConnectDeliverOnly";
 
+    //private $_logger;
     private $_bayeux;
-    private $_interval=0;
-    private $_maxInterval=10000;
-    private $_timeout=30000;
-    private $_maxLazyTimeout=5000;
-    private $_metaConnectDeliveryOnly=false;
+    private $_interval = 0;
+    private $_maxInterval = 10000;
+    private $_timeout = 30000;
+    private $_maxLazyTimeout = 5000;
+    private $_metaConnectDeliveryOnly = false;
+    private $jsonContext;
     private $_advice;
-
-    private $_optionPrefix = '';
-    private $_prefix = array();
-
-    private $_name;
-    private $_options = array();
-
 
     /* ------------------------------------------------------------ */
     /** Construct a ServerTransport.
@@ -53,8 +49,7 @@ abstract class AbstractServerTransport implements ServerTransport
      */
     protected function __construct(BayeuxServerImpl $bayeux, $name)
     {
-        $this->_name = $name;
-        $this->_options = $bayeux->getOptions();
+        parent::__construct($name, $bayeux->getOptions());
         $this->_bayeux = $bayeux;
     }
 
@@ -94,111 +89,6 @@ abstract class AbstractServerTransport implements ServerTransport
     }
 
     /* ------------------------------------------------------------ */
-    /**
-     * @see org.cometd.bayeux.Transport#getName()
-     */
-    public function getName()
-    {
-        return $this->_name;
-    }
-
-    /* ------------------------------------------------------------ */
-    /** Get an option value.
-     * Get an option value by searching the option name tree.  The option
-     * map obtained by calling {@link BayeuxServerImpl#getOptions()} is
-     * searched for the option name with the most specific prefix.
-     * If this transport was initialised with calls: <pre>
-     *   addPrefix("long-polling");
-     *   addPrefix("jsonp");
-     * </pre>
-     * then a call to getOption("foobar") will look for the
-     * most specific value with names:<pre>
-     *   long-polling.json.foobar
-     *   long-polling.foobar
-     *   foobar
-     * </pre>
-     */
-    public function getOption($name, $dftValue = null)
-    {
-        if (! isset($this->_options[$name])) {
-            $value = null;
-        }
-
-        $prefix = null;
-        foreach ($this->_prefix as $segment) {
-            $prefix = $prefix == null ? $segment : ($prefix . "." . $segment);
-            $key = $prefix . "." . $name;
-            if (isset($this->_options[$key])) {
-                $value = $this->_options[$key];
-            }
-        }
-
-        if ($value == null) {
-            return $dftValue;
-        }
-
-        return $value;
-    }
-
-    /* ------------------------------------------------------------ */
-    /**
-     * @see org.cometd.common.AbstractTransport#getOptionNames()
-     */
-    public function getOptionNames()
-    {
-        $names = array();
-        foreach (array_keys($this->_options) as $name) {
-            $names[] = rtrim($name, '.');
-        }
-        return $names;
-    }
-
-    /* ------------------------------------------------------------ */
-    public function getOptionPrefix()
-    {
-        return $this->_optionPrefix;
-    }
-
-    /* ------------------------------------------------------------ */
-    /** Set the option name prefix segment.
-     * <p> Normally this is called by the super class constructors to establish
-     * a naming hierarchy for options and iteracts with the {@link #setOption(String, Object)}
-     * method to create a naming hierarchy for options.
-     * For example the following sequence of calls:<pre>
-     *   setOption("foo","x");
-     *   setOption("bar","y");
-     *   setOptionPrefix("long-polling");
-     *   setOption("foo","z");
-     *   setOption("whiz","p");
-     *   setOptionPrefix("long-polling.jsonp");
-     *   setOption("bang","q");
-     *   setOption("bar","r");
-     * </pre>
-     * will establish the following option names and values:<pre>
-     *   foo: x
-     *   bar: y
-     *   long-polling.foo: z
-     *   long-polling.whiz: p
-     *   long-polling.jsonp.bang: q
-     *   long-polling.jsonp.bar: r
-     * </pre>
-     * The various {@link #getOption(String)} methods will search this
-     * name tree for the most specific match.
-     *
-     * @param segment name
-     * @throws IllegalArgumentException if the new prefix is not prefixed by the old prefix.
-     */
-    public function setOptionPrefix($prefix)
-    {
-        if ($this->_optionPrefix !== '' &&
-            strpos($this->_optionPrefix, $prefix) !== 0) {
-            throw new IllegalArgumentException($this->_optionPrefix . " not prefix of " . $prefix);
-        }
-        $this->_optionPrefix = $prefix;
-        $this->_prefix = explode('.', $prefix);
-    }
-
-    /* ------------------------------------------------------------ */
     /** Get the timeout.
      * @return the timeout
      */
@@ -216,20 +106,10 @@ abstract class AbstractServerTransport implements ServerTransport
     /* ------------------------------------------------------------ */
     public function setMetaConnectDeliveryOnly($meta)
     {
-        $this->_metaConnectDeliveryOnly = $meta;
-    }
-
-    /* ------------------------------------------------------------ */
-    /**
-     * @param name
-     * @param value
-     */
-    public function setOption($name, $value)
-    {
-        if ($this->_optionPrefix!=null && conunt($this->_optionPrefix)>0) {
-            $name = $this->_optionPrefix . "." . $name;
+        if (! is_bool($meta)) {
+            throw new \InvalidArgumentException();
         }
-        $this->_options[$mame] = $value;
+        $this->_metaConnectDeliveryOnly = $meta;
     }
 
     /* ------------------------------------------------------------ */
@@ -247,8 +127,7 @@ abstract class AbstractServerTransport implements ServerTransport
         $this->_timeout = $this->getOption(self::TIMEOUT_OPTION, $this->_timeout);
         $this->_maxLazyTimeout = $this->getOption(self::MAX_LAZY_OPTION, $this->_maxLazyTimeout);
         $this->_metaConnectDeliveryOnly = $this->getOption(self::META_CONNECT_DELIVERY_OPTION, $this->_metaConnectDeliveryOnly);
-
-        $this->_advice = "{\"reconnect\":\"retry\",\"interval\":{$this->_interval},\"timeout\":{$this->_timeout}}";
+        $this->jsonContext = $this->getOption(BayeuxServerImpl::JSON_CONTEXT);
     }
 
 
@@ -311,8 +190,18 @@ abstract class AbstractServerTransport implements ServerTransport
     /**
      * Housekeeping sweep, called a regular intervals
      */
-    protected function doSweep()
+    public function sweep()
     {
+    }
+
+    protected function debug($format)
+    {
+        throw new \Exception("não implementado");
+        if ($this->_bayeux->getLogLevel() >= BayeuxServerImpl.DEBUG_LOG_LEVEL) {
+            $this->_logger.info(format, args);
+        } else {
+            _logger.debug(format, args);
+        }
     }
 }
 

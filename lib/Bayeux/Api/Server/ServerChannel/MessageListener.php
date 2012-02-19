@@ -1,7 +1,8 @@
 <?php
 
-namespace Bayeux\Api\Server\ServerMessage\ServerChannel;
+namespace Bayeux\Api\Server\ServerChannel;
 
+use Bayeux\Api\Server\ServerChannel\ServerChannelListener;
 use Bayeux\Api\Server\ServerSession;
 use Bayeux\Api\Server\ServerChannel;
 use Bayeux\Api\Server\ServerMessage;

@@ -2,8 +2,9 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Client\ClientSession;
+use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Api\Message;
-
 use Bayeux\Api\Client\ClientSessionChannel;
 use Bayeux\Api\Server\ServerSession;
 use Bayeux\Api\Server\ServerChannel;
@@ -32,7 +33,7 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
     public function tearDown() //throws Exception
     {
         $this->_bayeux->stop();
-        $this->_events = array();
+        $this->_events = new \SplQueue();
     }
 
 
@@ -120,13 +121,9 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
 
         $local = $this->_bayeux->newLocalSession("s0");
         $local->handshake();
-
         $session = $local->getServerSession();
 
-
         $local->setAttribute("foo","bar");
-
-
         $this->assertEquals("bar", $local->getAttribute("foo"));
         $this->assertEquals(null, $session->getAttribute("foo"));
 
@@ -162,18 +159,12 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
 
         $listener = new TestMessageListener($events);
 
-
         $session0->getChannel("/foo/bar")->subscribe($listener);
         $session0->getChannel("/foo/bar")->subscribe($listener);
         $session1->getChannel("/foo/bar")->subscribe($listener);
         $session2->getChannel("/foo/bar")->subscribe($listener);
 
-
-        //System.err.println($this->_bayeux->dump());
-
         $this->assertEquals(3, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
-
-
 
         $session0->getChannel("/foo/bar")->unsubscribe($listener);
         $this->assertEquals(3, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
@@ -198,48 +189,46 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
 
 
         $this->assertEquals($session0->getId(), $events->dequeue());
-        $this->assertEquals("hello", $events->dequeue);
-        $this->assertEquals($session0.getId(), $events->dequeue());
-        $this->assertEquals("hello", $events->dequeue);
+        $this->assertEquals("hello", $events->dequeue());
         $this->assertEquals($session0->getId(), $events->dequeue());
-        $this->assertEquals("hello", $events->dequeue);
+        $this->assertEquals("hello", $events->dequeue());
+        $this->assertEquals($session0->getId(), $events->dequeue());
+        $this->assertEquals("hello", $events->dequeue());
         $this->assertEquals($session1->getId(), $events->dequeue());
-        $this->assertEquals("hello", $events->dequeue);
+        $this->assertEquals("hello", $events->dequeue());
         $this->assertEquals($session2->getId(), $events->dequeue());
         $this->assertEquals("hello", $events->dequeue());
         $foostar0->unsubscribe($listener);
 
 
-        exit;
-
-/*         session1.batch(new Runnable()
+        /*$session1->batch(new Runnable()
         {
             public void run()
-            {
-                ClientSessionChannel foobar1=session1.getChannel("/foo/bar");
-                foobar1.publish("part1");
-                assertEquals(null,events.poll());
-                foobar1.publish("part2");
-            }
-        }); */
+            {*/
+                $foobar1 = $session1->getChannel("/foo/bar");
+                $foobar1->publish("part1");
+                $this->assertEquals(null, $events->dequeue());
+                $foobar1->publish("part2");
+            /*}
+        });*/
 
-        $this->assertEquals(session1.getId(),events.poll());
-        $this->assertEquals("part1",events.poll());
-        $this->assertEquals(session2.getId(),events.poll());
-        $this->assertEquals("part1",events.poll());
-        $this->assertEquals(session0.getId(),events.poll());
-        $this->assertEquals("part1",events.poll());
-        $this->assertEquals(session0.getId(),events.poll());
-        $this->assertEquals("part1",events.poll());
-        $this->assertEquals(session1.getId(),events.poll());
-        $this->assertEquals("part2",events.poll());
-        $this->assertEquals(session2.getId(),events.poll());
-        $this->assertEquals("part2",events.poll());
-        $this->assertEquals(session0.getId(),events.poll());
-        $this->assertEquals("part2",events.poll());
-        $this->assertEquals(session0.getId(),events.poll());
-        $this->assertEquals("part2",events.poll());
-
+        $this->assertEquals($session1->getId(), $events->dequeue());
+        $this->assertEquals("part1", $events->dequeue());
+        $this->assertEquals($session2->getId(), $events->dequeue());
+        $this->assertEquals("part1", $events.poll());
+        $this->assertEquals($session0->getId(), $events->dequeue());
+        $this->assertEquals("part1", $events->dequeue());
+        $this->assertEquals($session0->getId(), $events->dequeue());
+        $this->assertEquals("part1", $events->dequeue());
+        $this->assertEquals($session1->getId(), $events->dequeue());
+        $this->assertEquals("part2", $events->dequeue());
+        $this->assertEquals($session2->getId(), $events->dequeue());
+        $this->assertEquals("part2", $events->dequeue());
+        $this->assertEquals($session0->getId(),$events->dequeue());
+        $this->assertEquals("part2", $events->dequeue());
+        $this->assertEquals($session0->getId(), $events->dequeue());
+        $this->assertEquals("part2", $events->dequeue());
+exit;
 
         $foobar0.unsubscribe();
         $this->assertEquals(2,_bayeux.getChannel("/foo/bar").getSubscribers().size());
@@ -269,125 +258,34 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
         $this->assertFalse(session2.isConnected());
         $this->assertFalse(ss2.isConnected());
     }
-}
-    /*
+
+
     public function testExtensions() //throws Exception
     {
-        final Queue<String> events = new ConcurrentLinkedQueue<String>();
-        _bayeux.addExtension(new BayeuxServer.Extension()
-        {
-            public boolean sendMeta(ServerSession to, Mutable message)
-            {
-                return true;
-            }
+        $events = new \SplQueue();
+        $this->_bayeux->addExtension(new BayeuxServerExtensionTest());
 
-            public boolean send(ServerSession from, ServerSession to, Mutable message)
-            {
-                if ("three".equals(message.getData()))
-                    message.setData("four");
-                return !"ignoreSend".equals(message.getData());
-            }
-
-            public boolean rcvMeta(ServerSession from, Mutable message)
-            {
-                return true;
-            }
-
-            public boolean rcv(ServerSession from, Mutable message)
-            {
-                if ("one".equals(message.getData()))
-                    message.setData("two");
-                return !"ignoreRcv".equals(message.getData());
-            }
-        });
-
-        final LocalSession session0 = _bayeux.newLocalSession("s0");
-        session0.handshake();
+        $session0 = $this->_bayeux->newLocalSession("s0");
+        $session0->handshake();
         //final LocalSession session1 = _bayeux.newLocalSession("s1");
         //session1.handshake();
 
-        session0.addExtension(new ClientSession.Extension()
-        {
-            public boolean sendMeta(ClientSession session, org.cometd.bayeux.Message.Mutable message)
-            {
-                return true;
-            }
+        $session0->addExtension(new ClientSessionExtensionTest());
+        $session0->getServerSession()->addExtension(new ServerSessionExtensionTest());
+        $listener = new ClientSessionChannelMessageListenerTest();
 
-            public boolean send(ClientSession session, org.cometd.bayeux.Message.Mutable message)
-            {
-                if ("zero".equals(message.getData()))
-                    message.setData("one");
-                return true;
-            }
-
-            public boolean rcvMeta(ClientSession session, org.cometd.bayeux.Message.Mutable message)
-            {
-                return true;
-            }
-
-            public boolean rcv(ClientSession session, org.cometd.bayeux.Message.Mutable message)
-            {
-                if ("five".equals(message.getData()))
-                    message.setData("six");
-                return true;
-            }
-        });
-
-
-        session0.getServerSession().addExtension(new ServerSession.Extension()
-        {
-            public boolean rcv(ServerSession from, Mutable message)
-            {
-                if ("two".equals(message.getData()))
-                    message.setData("three");
-                return true;
-            }
-
-            public boolean rcvMeta(ServerSession from, Mutable message)
-            {
-                return true;
-            }
-
-            public ServerMessage send(ServerSession to, ServerMessage message)
-            {
-                if (message.isMeta())
-                    new Throwable().printStackTrace();
-                if ("four".equals(message.getData()))
-                {
-                    ServerMessage.Mutable cloned=_bayeux.newMessage(message);
-                    cloned.setData("five");
-                    return cloned;
-                }
-                return message;
-            }
-
-            public boolean sendMeta(ServerSession to, Mutable message)
-            {
-                return true;
-            }
-        });
-
-        ClientSessionChannel.MessageListener listener = new ClientSessionChannel.MessageListener()
-        {
-            public void onMessage(ClientSessionChannel channel, Message message)
-            {
-                events.add(channel.getSession().getId());
-                events.add(message.getData().toString());
-            }
-        };
-
-        $session0.getChannel("/foo/bar").subscribe(listener);
+        $session0->getChannel("/foo/bar")->subscribe($listener);
         // session1.getChannel("/foo/bar").subscribe(listener);
 
-        $session0.getChannel("/foo/bar").publish("zero");
-        $session0.getChannel("/foo/bar").publish("ignoreSend");
-        $session0.getChannel("/foo/bar").publish("ignoreRcv");
+        $session0->getChannel("/foo/bar")->publish("zero");
+        $session0->getChannel("/foo/bar")->publish("ignoreSend");
+        $session0->getChannel("/foo/bar")->publish("ignoreRcv");
 
-        sleep(100);
-        System.err.println(events);
+        usleep(100);
+        //System.err->println(events);
 
-        $this->assertEquals(session0.getId(),events.poll());
-        $this->assertEquals("six",events.poll());
+        $this->assertEquals($session0->getId(), $events->dequeue());
+        $this->assertEquals("six", $events->dequeue());
 
 
         //assertEquals(session1.getId(),events.poll());
@@ -397,7 +295,7 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
 
     }
 }
-*/
+
 
 abstract class AListener {
 
@@ -475,6 +373,108 @@ class TestMessageListener implements ClientSessionChannel\MessageListener
     public function onMessage(ClientSessionChannel $channel, Message $message)
     {
         $this->events->enqueue($channel->getSession()->getId());
-        $this->events->enqueue($message->getData()->toString());
+        $this->events->enqueue((string) $message->getData());
     }
-};
+}
+
+class BayeuxServerExtensionTest implements BayeuxServer\Extension
+{
+    public function sendMeta(ServerSession $to = null, ServerMessage\Mutable $message)
+    {
+        return true;
+    }
+
+    public function send(ServerSession $from, ServerSession $to, ServerMessage\Mutable $message)
+    {
+        if ("three" == $message->getData()) {
+            $message->setData("four");
+        }
+        return "ignoreSend" != $message->getData();
+    }
+
+    public function rcvMeta(ServerSession $from, ServerMessage\Mutable $message)
+    {
+        return true;
+    }
+
+    public function rcv(ServerSession $from, ServerMessage\Mutable $message)
+    {
+        if ("one" == $message->getData()) {
+            $message->setData("two");
+        }
+        return "ignoreRcv" != $message->getData();
+    }
+}
+
+class ClientSessionExtensionTest implements ClientSession\Extension
+{
+    public function sendMeta(ClientSession $session, Message\Mutable $message)
+    {
+        return true;
+    }
+
+    public function send(ClientSession $session, Message\Mutable $message)
+    {
+        if ("zero" == $message->getData()) {
+            $message->setData("one");
+        }
+        return true;
+    }
+
+    public function rcvMeta(ClientSession $session, Message\Mutable $message)
+    {
+        return true;
+    }
+
+    public function rcv(ClientSession $session, Message\Mutable $message)
+    {
+        if ("five" == $message->getData()) {
+            $message->setData("six");
+        }
+        return true;
+    }
+}
+
+class ServerSessionExtensionTest implements ServerSession\Extension
+{
+    public function rcv(ServerSession $from, ServerMessage\Mutable $message)
+    {
+        if ("two" == $message->getData()) {
+            $message->setData("three");
+        }
+        return true;
+    }
+
+    public function rcvMeta(ServerSession $from, ServerMessage\Mutable $message)
+    {
+        return true;
+    }
+
+    public function send(ServerSession $to, ServerMessage $message)
+    {
+        if ($message->isMeta()) {
+            new Throwable().printStackTrace();
+        }
+        if ("four" == $message->getData())
+        {
+            $cloned = $this->_bayeux->newMessage($message);
+            $cloned->setData("five");
+            return $cloned;
+        }
+        return $message;
+    }
+
+    public function sendMeta(ServerSession $to = null, ServerMessage\Mutable $message)
+    {
+        return true;
+    }
+}
+
+class ClientSessionChannelMessageListenerTest implements ClientSessionChannel\MessageListener
+{
+    public function onMessage(ClientSessionChannel $channel, Message $message)
+    {
+        $this->_events->enqueue($channel->getSession()->getId());
+        $this->_events->enqueue((string) $message->getData());
+    }
+}

@@ -3,6 +3,7 @@
 namespace Bayeux\Api\Server\BayeuxServer;
 
 
+use Bayeux\Api\Server\ServerSession;
 use Bayeux\Api\Server\ServerMessage;
 
 /**
@@ -49,5 +50,5 @@ interface Extension
      * @param message the outgoing meta message
      * @return true if message processing should continue, false if it should stop
      */
-    public function sendMeta(ServerSession $to, ServerMessage\Mutable $message);
+    public function sendMeta(ServerSession $to = null, ServerMessage\Mutable $message);
 }

@@ -3,8 +3,13 @@
 namespace Bayeux\Server;
 
 
-use Bayeux\Api\Server\LocalSession;
+use Bayeux\Api\Server\ServerMessage;
 
+use Bayeux\Api\Server\ServerSession;
+
+use Bayeux\Api\Server\BayeuxServer\SubscriptionListener;
+
+use Bayeux\Api\Server\LocalSession;
 use Bayeux\Api\Server\BayeuxServer;
 use Bayeux\Api\Server\Authorizer;
 use Bayeux\Api\Server\ServerChannel\ServerChannelListener;
@@ -13,32 +18,35 @@ use Bayeux\Api\Server\ConfigurableServerChannel;
 use Bayeux\Api\Server\ServerChannel;
 use Bayeux\Api\Session;
 
-class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
+class ServerChannelImpl implements ServerChannel
 {
+
+    //private $_logger;
     private $_bayeux;
     private $_id;
     private $_attributes = array();
     private $_subscribers = array();
     private $_listeners = array();
     private $_authorizers = array();
-    private $_meta;
-    private $_broadcast;
-    private $_service;
-    private $_initialized;
+    private $_initialized = 1;
+    private $_sweeperPasses = 0;
+    private $_children = array();
+    private $_parent;
     private $_lazy;
     private $_persistent;
-    private $_sweeperPasses = 0;
+
 
     /* ------------------------------------------------------------ */
-    public function __construct(BayeuxServerImpl $bayeux, ChannelId $id)
+    public function __construct(BayeuxServerImpl $bayeux, ChannelId $id, ServerChannelImpl $parent = null)
     {
         $this->_bayeux = $bayeux;
         $this->_id = $id;
-        $this->_meta = $id->isMeta();
-        $this->_service = $id->isService();
-        $this->_broadcast = ! $this->isMeta() && ! $this->isService();
+        $this->_parent = $parent;
+        if ($parent != null) {
+            $parent->addChild($this);
+        }
         $this->_initialized = 1; //FIXME: deve ser unico
-        $this->setPersistent(!$this->_broadcast);
+        $this->setPersistent(!$this->isBroadcast());
     }
 
     /* ------------------------------------------------------------ */
@@ -52,20 +60,26 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
     {
         try
         {
-            if (!$this->_initialized->await(5, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("Not Initialized: " . $this);
-            }
+            //if (! $this->_initialized->await(5, TimeUnit.SECONDS)) {
+            //    throw new IllegalStateException("Not Initialized: " . $this);
+            //}
         }
         catch(InterruptedException $e)
         {
-            throw new IllegalStateException("Initizlization interrupted: "+$this);
+            //throw new IllegalStateException("Initizlization interrupted: "+$this);
         }
     }
 
     /* ------------------------------------------------------------ */
     public function initialized()
     {
-        $this->_initialized->countDown();
+        $this->resetSweeperPasses();
+        $this->_initialized = 1;
+    }
+
+    public function resetSweeperPasses()
+    {
+        $this->_sweeperPasses = 0;
     }
 
     /* ------------------------------------------------------------ */
@@ -79,12 +93,22 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
             return false;
         }
 
+        if ($this->isService()) {
+            return true;
+        }
+
+        if ($this->isMeta()) {
+            return false;
+        }
+
+
+        $this->resetSweeperPasses();
         if (! in_array($session, $this->_subscribers))
         {
             $this->_subscribers[] = $session;
             $session->subscribedTo($this);
             foreach ($this->_listeners as $listener) {
-                if ($listener instanceof SubscriptionListener) {
+                if ($listener instanceof ServerChannel\SubscriptionListener) {
                     $listener->subscribed($session, $this);
                 }
             }
@@ -96,32 +120,74 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
             }
         }
 
-        $this->_sweeperPasses = 0;
         return true;
     }
 
-    /* ------------------------------------------------------------ */
-    public function unsubscribe(ServerSessionImpl $session)
+    private function notifySubscribed(SubscriptionListener $listener, ServerSession $session, ServerChannel $channel)
     {
+        if (! ($listener instanceof SubscriptionListener) || ! ($listener instanceof BayeuxServer\SubscriptionListener)) {
+            throw new \InvalidArgumentException();
+        }
+
+        try
+        {
+            $listener->subscribed($session, $channel);
+        }
+        catch (\Exception $x)
+        {
+            echo "Exception while invoking listener ";
+            //_logger.info("Exception while invoking listener " + listener, x);
+        }
+    }
+
+    /* ------------------------------------------------------------ */
+    public function unsubscribe(ServerSession $session)
+    {
+        if (! $session instanceof ServerSessionImpl) {
+            if ($this->isService()) {
+                return true;
+            }
+
+            if ($this->isMeta()) {
+                return false;
+            }
+        }
+
         $key = array_search($session, $this->_subscribers);
         if ($key === false) {
             return false;
         }
 
         unset($this->_subscribers[$key]);
-        $session->unsubscribedTo($this);
+        $session->unsubscribedFrom($this);
         foreach ($this->_listeners as $listener) {
-            if ($listener instanceof SubscriptionListener) {
-                $listener->unsubscribed($session, $this);
+            if ($listener instanceof ServerChannel\SubscriptionListener) {
+                $this->notifyUnsubscribed($listener, $session, $this);
             }
         }
 
         foreach ($this->_bayeux->getListeners() as $listener) {
             if ($listener instanceof BayeuxServer\SubscriptionListener) {
-                $listener->unsubscribed($session, $this);
+                $this->notifyUnsubscribed($listener, $session, $this);
             }
         }
         return true;
+    }
+
+    private function notifyUnsubscribed($listener, ServerSession $session, ServerChannel $channel)
+    {
+        //if (! ($listener instanceof SubscriptionListener) && ! ($listener instanceof BayeuxServer\SubscriptionListener)) {
+        //    throw new \InvalidArgumentException();
+        //}
+
+        try
+        {
+            $listener->unsubscribed($session, $channel);
+        }
+        catch (\Exception $x)
+        {
+            echo ("Exception while invoking listener " . $listener . $x);
+        }
     }
 
     /* ------------------------------------------------------------ */
@@ -130,10 +196,9 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
         return $this->_subscribers;
     }
 
-    /* ------------------------------------------------------------ */
     public function isBroadcast()
     {
-        return $this->_broadcast;
+        return !$this->isMeta() && !$this->isService();
     }
 
     /* ------------------------------------------------------------ */
@@ -163,31 +228,30 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
     /* ------------------------------------------------------------ */
     public function setLazy($lazy)
     {
-        $this->_lazy=$lazy;
+        $this->_lazy = $lazy;
     }
 
     /* ------------------------------------------------------------ */
     public function setPersistent($persistent)
     {
+        $this->resetSweeperPasses();
         $this->_persistent = $persistent;
     }
 
     /* ------------------------------------------------------------ */
     public function addListener(ServerChannelListener $listener)
     {
+        $this->resetSweeperPasses();
         $this->_listeners[] = $listener;
-        $this->_sweeperPasses = 0;
     }
 
     /* ------------------------------------------------------------ */
     public function removeListener(ServerChannelListener $listener)
     {
-        $key = arra_search($listener, $this->_listeners);
+        $key = array_search($listener, $this->_listeners);
         if ($key !== false) {
             unset($this->_listeners[$key]);
-            return true;
         }
-        return false;
     }
 
     /* ------------------------------------------------------------ */
@@ -211,27 +275,26 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
     /* ------------------------------------------------------------ */
     public function isMeta()
     {
-        return $this->_meta;
+        return $this->_id->isMeta();
     }
 
     /* ------------------------------------------------------------ */
     public function isService()
     {
-        return $this->_service;
+        return $this->_id->isService();
     }
 
     public function publish(Session $from = null, $arg1, $id = null) {
-        if (! $arg1 instanceof ServerMessage\Mutable) {
+        if (! ($arg1 instanceof ServerMessage\Mutable) ) {
             $mutable = $this->_bayeux->newMessage();
             $mutable->setChannel($this->getId());
             if($from != null) {
                 $mutable->setClientId($from->getId());
             }
             $mutable->setData($arg1);
-            if ($id !== null) {
-                throw new \InvalidArgumentException();
-            }
             $mutable->setId($id);
+        } else {
+            $mutable = $arg1;
         }
 
         if ($this->isWild()) {
@@ -261,11 +324,11 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
     }
 
     /* ------------------------------------------------------------ */
-    protected function doSweep()
+    public function sweep()
     {
         foreach ($this->_subscribers as $session)
         {
-            if (!session.isHandshook()) {
+            if (! $session->isHandshook()) {
                 $this->unsubscribe($session);
             }
         }
@@ -274,24 +337,26 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
             return;
         }
 
-        if (count($this->_subscribers > 0) || count($this->_listeners) > 0) {
+
+        if (count($this->_subscribers) > 0) {
             return;
         }
 
-        if ($this->isWild() || $this->isDeepWild())
+        if (count($this->_authorizers) > 0) {
+            return;
+        }
+
+        if (! $this->isWild())
         {
             // Wild, check if has authorizers that can match other channels
-            if (count($this->_authorizers)> 0) {
+            if (count($this->_children) > 0) {
                 return;
             }
         }
-        else
-        {
-            // Not wild, then check if it has children
-            foreach ($this->_bayeux->getChannels() as $channel) {
-                if ($this->_id->isParentOf($channel->getChannelId())) {
-                    return;
-                }
+
+        foreach ($this->_listeners as $listener ) {
+            if (! ($listener instanceof ServerChannelListener\Weak)) {
+                return;
             }
         }
 
@@ -305,16 +370,20 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
     /* ------------------------------------------------------------ */
     public function remove()
     {
-        foreach ($this->_bayeux->getChannelChildren($this->_id) as $child) {
+        if ($this->_parent != null) {
+            $this->_parent->removeChild($this);
+        }
+
+        foreach ($this->_children as $child) {
             $child->remove();
         }
 
         if ($this->_bayeux->removeServerChannel($this))
         {
             foreach ($this->_subscribers as $subscriber) {
-                $subscriber->unsubscribedTo($this);
+                $subscriber->unsubscribedFrom($this);
             }
-           $this->_subscribers = array();
+            $this->_subscribers = array();
         }
 
         $this->_listeners = array();
@@ -342,7 +411,19 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
         return $old;
     }
 
-    /* ------------------------------------------------------------ */
+    private function addChild(ServerChannelImpl $child)
+    {
+        $this->_children[] = $child;
+    }
+
+    private function removeChild(ServerChannelImpl $child)
+    {
+        $key = array_search($child, $this->_children);
+        if ($key !== false) {
+            unset($this->_children[$key]);
+        }
+    }
+
     protected function dump($b, $indent)
     {
         $b .= $this->toString();
@@ -382,7 +463,10 @@ class ServerChannelImpl implements ServerChannel//, ConfigurableServerChannel
     /* ------------------------------------------------------------ */
     public function removeAuthorizer(Authorizer $authorizer)
     {
-        $this->_authorizers[$authorizer];
+        $key = array_search($authorizer, $this->_authorizers);
+        if ($key !== false)  {
+            unset($this->_authorizers[$key]);
+        }
     }
 
     /* ------------------------------------------------------------ */

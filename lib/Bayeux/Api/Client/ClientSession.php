@@ -2,7 +2,7 @@
 
 namespace Bayeux\Api\Client;
 
-use Bayeux\Api\Cliente\ClientSession\Extension;
+use Bayeux\Api\Client\ClientSession\Extension;
 use Bayeux\Api\Session;
 
 /**

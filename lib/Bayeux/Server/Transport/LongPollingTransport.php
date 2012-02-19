@@ -35,7 +35,7 @@ abstract class LongPollingTransport extends HttpTransport
     private $_multiSessionInterval = 2000;
     private $_autoBatch = true;
     private $_allowMultiSessionsNoBrowser = false;
-    private $_lastSweep;
+    private $_lastSweep = 0;
 
     public function __construct(BayeuxServerImpl $bayeux, $name)
     {
@@ -363,32 +363,32 @@ abstract class LongPollingTransport extends HttpTransport
      *
      * @see org.cometd.server.AbstractServerTransport#doSweep()
      */
-    protected function doSweep()
+    public function doSweep()
     {
-        $now = System.currentTimeMillis();
-        if (0 < _lastSweep && _lastSweep < now)
+        $now = microtime();
+        if (0 < $this->_lastSweep && $this->_lastSweep < $now)
         {
             // Calculate the maximum sweeps that a browser ID can be 0 as the
             // maximum interval time divided by the sweep period, doubled for safety
-            $maxSweeps = (int)(2 * getMaxInterval() / (now - _lastSweep));
+            $maxSweeps = (int)(2 * $this->getMaxInterval() / ($now - $this->_lastSweep));
 
-            foreach ($this->_browserSweep.entrySet() as $entry)
+            foreach ($this->_browserSweep as $key => $entry)
             {
-                $count = entry.getValue();
+                $count = $entry->getValue();
                 // if the ID has been in the sweep map for 3 sweeps
-                if (count!=null && count.incrementAndGet() > maxSweeps)
+                if ($count != null && ++$count > $maxSweeps)
                 {
-                    $key = entry.getKey();
                     // remove it from both browser Maps
-                    if (_browserSweep.remove(key) == count && _browserMap.get(key).get() == 0)
+                    $this->_browserSweep[$key] = 0;
+                    if ($this->_browserSweep[$key] == $count && $this->_browserMap[$key] == 0)
                     {
-                        _browserMap.remove(key);
-                        getBayeux().getLogger().debug("Swept browserId {}", key);
+                        unset($this->_browserMap[$key]);
+                        //$this->getBayeux().getLogger().debug("Swept browserId {}", key);
                     }
                 }
             }
         }
-        $this->_lastSweep = now;
+        $this->_lastSweep = $now;
     }
 
     private function sendQueue(HttpServletRequest $request, HttpServletResponse $response, ServerSessionImpl $session, PrintWriter $writer)

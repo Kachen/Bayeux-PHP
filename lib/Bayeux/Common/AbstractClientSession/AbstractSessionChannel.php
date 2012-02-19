@@ -2,6 +2,10 @@
 
 namespace Bayeux\Common\AbstractClientSession;
 
+use Bayeux\Server\BayeuxServerImpl;
+
+use Bayeux\Common\AbstractClientSession;
+
 use Bayeux\Api\Client\ClientSessionChannel\ClientSessionChannelListener;
 use Bayeux\Api\Message;
 use Bayeux\Api\Client\ClientSessionChannel\MessageListener;
@@ -14,20 +18,30 @@ use Bayeux\Api\Client\ClientSessionChannel;
  */
 abstract class AbstractSessionChannel implements ClientSessionChannel
 {
-    protected $logger;
     private $_id;
     private $_attributes = array();
     private $_subscriptions = array();
-    private $_subscriptionCount;
+    private $_subscriptionCount = 0;
     private $_listeners = array();
+    private $_released;
+
+    protected $_localSession;
+    protected $_bayeux;
+    protected $_session;
+
 
     /* ------------------------------------------------------------ */
     protected function __construct(ChannelId $id)
     {
-        $this->_subscriptionCount;// = new AtomicInteger();
-        //$this->logger = Log::getLogger($this->getClass()->getName());
-        $this->_subscriptionCount;// = new AtomicInteger();
         $this->_id = $id;
+    }
+
+    public function init(AbstractClientSession $localSession, BayeuxServerImpl $bayeux, &$session) {
+        $this->_localSession = $localSession;
+        //$localSession->setSession($this, $session);
+
+        $this->_bayeux = $bayeux;
+        $this->_session = $session;
     }
 
     /* ------------------------------------------------------------ */
@@ -39,16 +53,23 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
     /* ------------------------------------------------------------ */
     public function addListener(ClientSessionChannelListener $listener)
     {
+        $this->throwIfReleased();
         $this->_listeners[] = $listener;
     }
 
     /* ------------------------------------------------------------ */
     public function removeListener(ClientSessionChannelListener $listener)
     {
+        $this->throwIfReleased();
         $key = array_search($listener, $this->_listeners);
         if ($key !== false) {
             unset($this->_listeners[$key]);
         }
+    }
+
+    public function getListeners()
+    {
+        return $this->_listeners;
     }
 
     /* ------------------------------------------------------------ */
@@ -60,19 +81,21 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
     /* ------------------------------------------------------------ */
     public function subscribe(MessageListener $listener)
     {
-        $added = $this->_subscriptions[] = $listener;
-        if ($added)
-        {
+        $this->throwIfReleased();
+        $this->_subscriptions[] = $listener;
+        //if ($added)
+        //{
             $count = ++$this->_subscriptionCount; //->incrementAndGet(); FIXME: ATOMIC
             if ($count == 1) {
                 $this->sendSubscribe();
             }
-        }
+        //}
     }
 
     /* ------------------------------------------------------------ */
     public function unsubscribe(MessageListener $listener = null)
     {
+        $this->throwIfReleased();
         if ($listener === null) {
             foreach ($this->_subscriptions as $listener) {
                 $this->unsubscribe($listener);
@@ -90,13 +113,40 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
         }
     }
 
+    public function getSubscribers()
+    {
+        return $this->_subscriptions;
+    }
+
+
+    public function release()
+    {
+        if ($this->_released) {
+            return false;
+        }
+
+        if (empty($this->_subscriptions) && empty($this->_listeners))
+        {
+            $removed = $this->_localSession->removeChannel($this->getId(), $this);
+            $this->_released = $removed;
+            return $removed;
+        }
+        return false;
+    }
+
+    public function isReleased()
+    {
+        return $this->_released;
+    }
+
     /* ------------------------------------------------------------ */
     protected function resetSubscriptions()
     {
+        $this->throwIfReleased();
         foreach ($this->_subscriptions as $key => $l)
         {
             unset($this->_subscriptions[$key]); //FIXME: verificar esse logica e mudar
-            $this->_subscriptionCount--;
+            --$this->_subscriptionCount;
         }
     }
 
@@ -124,6 +174,10 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
         return $this->_id->isService();
     }
 
+    public function isBroadCast() {
+        return ! $this->isMeta() && ! $this->isService();
+    }
+
     /* ------------------------------------------------------------ */
     public function isWild()
     {
@@ -134,54 +188,57 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
     {
         foreach ($this->_listeners as $listener)
         {
-            if (listener instanceof ClientSessionChannel\MessageListener)
-            {
-                try
-                {
-                    $listener->onMessage($this, $message);
-                }
-                catch (\Exception $x)
-                {
-                    $this->logger->info($x);
-                }
+            if (listener instanceof ClientSessionChannel\MessageListener) {
+                $this->notifyOnMessage($listener, $message);
             }
         }
+
         foreach ($this->_subscriptions as $listener)
         {
             if ($listener instanceof ClientSessionChannel\MessageListener)
             {
-                if ($message->getData() != null)
-                {
-                    try
-                    {
-                        $listener->onMessage($this, $message);
-                    }
-                    catch (\Exception $x)
-                    {
-                        $this->logger->info($x);
-                    }
+                if ($message->getData() != null) {
+                    $this->notifyOnMessage($listener, $message);
                 }
             }
+        }
+    }
+
+    private function notifyOnMessage(MessageListener $listener, Message $message)
+    {
+        $this->throwIfReleased();
+        try
+        {
+            $listener->onMessage($this, $message);
+        }
+        catch (\Exception $x)
+        {
+            echo "Exception while invoking listener " . $listener . $x;
+            //logger.info("Exception while invoking listener " + listener, x);
         }
     }
 
     public function setAttribute($name, $value)
     {
+        $this->throwIfReleased();
         $this->_attributes->setAttribute($name, $value);
     }
 
     public function getAttribute($name)
     {
+        $this->throwIfReleased();
         return $this->_attributes->getAttribute($name);
     }
 
     public function getAttributeNames()
     {
+        $this->throwIfReleased();
         return array_keys($this->_attributes);
     }
 
     public function removeAttribute($name)
     {
+        $this->throwIfReleased();
         $old = $this->getAttribute($name);
         unset($this->_attributes[$name]);
         return $old;
@@ -207,6 +264,13 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
             $b .= '\n';
         }
         return $b;
+    }
+
+    protected function throwIfReleased()
+    {
+        if ($this->isReleased()) {
+            throw new \Exception("Channel " . $this . " has been released");
+        }
     }
 
     /* ------------------------------------------------------------ */

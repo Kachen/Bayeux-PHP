@@ -19,42 +19,42 @@ class GrantAuthorizer implements Authorizer
     /**
      * Grants {@link Operation#CREATE} authorization
      */
-    public static $GRANT_CREATE;
+    private static $GRANT_CREATE = 0;
 
     /**
      * Grants {@link Operation#SUBSCRIBE} authorization
      */
-    public static $GRANT_SUBSCRIBE;
+    private static $GRANT_SUBSCRIBE;
 
     /**
      * Grants {@link Operation#PUBLISH} authorization
      */
-    public static $GRANT_PUBLISH;
+    private static $GRANT_PUBLISH;
 
     /**
      * Grants {@link Operation#CREATE} and {@link Operation#SUBSCRIBE} authorization
      */
-    public static $GRANT_CREATE_SUBSCRIBE;
+    private static $GRANT_CREATE_SUBSCRIBE;
 
     /**
      * Grants {@link Operation#SUBSCRIBE} and {@link Operation#PUBLISH} authorization
      */
-    public static $GRANT_SUBSCRIBE_PUBLISH;
+    private static $GRANT_SUBSCRIBE_PUBLISH;
 
     /**
      * Grants {@link Operation#CREATE}, {@link Operation#SUBSCRIBE} and {@link Operation#PUBLISH} authorization
      */
-    public static $GRANT_ALL;
+    private static $GRANT_ALL;
 
     /**
      * Grants no authorization, the authorization request is ignored
      */
-    public static $GRANT_NONE;
+    private static $GRANT_NONE;
 
 
     public static function GRANT_CREATE() {
         if (self::$GRANT_CREATE === null) {
-            self::$GRANT_CREATE = new self(Operation::CREATE);;
+            self::$GRANT_CREATE = new self(Operation::CREATE);
         }
         return self::$GRANT_CREATE;
     }
@@ -76,7 +76,7 @@ class GrantAuthorizer implements Authorizer
     public static function GRANT_CREATE_SUBSCRIBE() {
         throw new \Exception("validar esse tipo");
         if (self::$GRANT_CREATE_SUBSCRIBE === null) {
-            self::$GRANT_CREATE_SUBSCRIBE = new GrantAuthorizer(Operation::CREATE + Operation::SUBSCRIBE);
+            self::$GRANT_CREATE_SUBSCRIBE = new GrantAuthorizer(Operation::CREATE, Operation::SUBSCRIBE);
         }
         return self::$GRANT_CREATE_SUBSCRIBE;
     }
@@ -90,26 +90,24 @@ class GrantAuthorizer implements Authorizer
     }
 
     public static function GRANT_ALL() {
-        throw new \Exception("validar esse tipo");
         if (self::$GRANT_ALL === null) {
-            self::$GRANT_ALL = new GrantAuthorizer(Operation::CCLASS);
+            self::$GRANT_ALL = new GrantAuthorizer(Operation::CREATE, Operation::PUBLISH, Operation::SUBSCRIBE);
         }
         return self::$GRANT_ALL;
     }
 
     public static function GRANT_NONE() {
         if (self::$GRANT_NONE === null) {
-            throw new \Exception("validar esse tipo");
-            //self::$GRANT_NONE = new GrantAuthorizer(EnumSet.noneOf(Operation.class));
+            self::$GRANT_NONE = new GrantAuthorizer();
         }
         return self::$GRANT_NONE;
     }
 
     private $_operations;
 
-    private function __construct(array $operations)
+    private function __construct()
     {
-        $this->_operations = $operations;
+        $this->_operations = func_get_args();
     }
 
     public function authorize(Operation $operation, ChannelId $channel, ServerSession $session, ServerMessage $message)

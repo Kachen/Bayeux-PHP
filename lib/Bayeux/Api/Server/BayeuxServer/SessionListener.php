@@ -3,7 +3,6 @@
 namespace Bayeux\Api\Server\BayeuxServer;
 
 use Bayeux\Api\Server\ServerSession;
-use Bayeux\Api\Server\ServerSession\ServerSessionListener;
 
 /**
  * <p>Specialized listener for {@link ServerSession} events.</p>

@@ -17,7 +17,7 @@ class DisconnectHandler extends HandlerListener
         }
 
         $this->removeServerSession($session,false);
-        $this->session->flush();
+        $session->flush();
 
         $reply->setSuccessful(true);
     }

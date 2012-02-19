@@ -2,19 +2,11 @@
 
 namespace Bayeux\Common;
 
-use Bayeux\Api\ChannelId;
-
 use Bayeux\Api\Message;
+use Bayeux\Api\ChannelId;
 
 class HashMapMessage extends \ArrayObject implements Message\Mutable
 {
-
-    public function addJSON(&$buffer)
-    {
-        buffer.append($this->getJSON());
-    }
-
-
 
     public function getChannel()
     {
@@ -23,20 +15,12 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
 
     public function getChannelId()
     {
-        return new ChannelId(getChannel());
+        return new ChannelId($this->getChannel());
     }
 
     public function getClientId()
     {
         return $this[self::CLIENT_ID_FIELD];
-    }
-
-    public function getData()
-    {
-        if (isset($this[self::DATA_FIELD])) {
-            return $this[self::DATA_FIELD];
-        }
-        return null;
     }
 
     public function getId()
@@ -49,78 +33,79 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
         return null;
     }
 
+    public function getData()
+    {
+        if (isset($this[self::DATA_FIELD])) {
+            if (is_array($this[self::DATA_FIELD])) {
+                return new \ArrayObject((array) $this[self::DATA_FIELD]);
+            }
+            return $this[self::DATA_FIELD];
+        }
+        return null;
+    }
+
     public function getJSON()
     {
-        return json_encode($this->getArrayCopy());
+        //FIXME: colocaro jsoncontext como estatico no constructor e utilizar ele aqui
+        return df_json_encode($this->getArrayCopy());
     }
 
     public function getAdvice($create = null)
     {
-        if ($create === null) {
-            if (isset($this[self::ADVICE_FIELD])) {
-                $advice = $this[self::ADVICE_FIELD];
-            } else {
-                $advice = null;
-            }
-
-            if ($advice instanceof JSON\Literal)
-            {
-                $advice = $this->jsonParser->parse($advice->toString());
-                $this[self::ADVICE_FIELD] = $advice;
-            }
-
-            //return $advice;
+        if (isset($this[self::ADVICE_FIELD])) {
+            $advice = $this[self::ADVICE_FIELD];
+        } else {
+            $advice = null;
         }
 
-        if ($create && $advice == null)
+        if ($create === null) {
+            return $advice;
+        }
+
+        if ($create && $advice === null)
         {
-            $advice = array();
-            $this[self::ADVICE_FIELD] = $advice;
+            $this[self::ADVICE_FIELD] = $advice = new \ArrayObject();
         }
         return $advice;
     }
 
     public function getDataAsMap($create = null)
     {
-        if ($create === null) {
-            if (isset($this[self::DATA_FIELD])) {
-                $data = $this[self::DATA_FIELD];
-            } else {
-                $data = null;
+        if (isset($this[self::DATA_FIELD])) {
+            if (! ($this[self::DATA_FIELD] instanceof \ArrayObject)) {
+                $data = new \ArrayObject((array) $this[self::DATA_FIELD]);
             }
+        } else {
+            $data = null;
+        }
 
-            if ($data instanceof JSON.Literal)
-            {
-                $data = $jsonParser.parse(data.toString());
-                $this->put(DATA_FIELD, data);
-            }
-            //return $data;
+        if ($create === null) {
+            return $data;
         }
 
         if ($create && $data == null)
         {
-            $data = array();
-            $this[self::DATA_FIELD] = &$data;
+            $this[self::DATA_FIELD] = $data = new \ArrayObject();
         }
-        return $this[self::DATA_FIELD];
+        return $data;
     }
 
     public function getExt($create = null)
     {
-        if ($create === null) {
+        if (isset($this[self::EXT_FIELD])) {
             $ext = $this[self::EXT_FIELD];
-            if ($ext instanceof JSON\Literal)
-            {
-                $ext = jsonParser.parse($ext.toString());
-                $this[self::EXT_FIELD] = $ext;
-            }
-            //return $ext;
+        } else {
+            $ext = null;
+        }
+
+        if ($create === null) {
+            return $ext;
         }
 
         if ($create && $ext == null) {
-            $ext = array();
-            $this[self::EXT_FIELD] = $ext;
+            $this[self::EXT_FIELD] = $ext = new \ArrayObject();
         }
+
         return $ext;
     }
 
@@ -131,16 +116,16 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
 
     public function isSuccessful()
     {
-        $value = $this[Message::SUCCESSFUL_FIELD];
+        if (isset($this[Message::SUCCESSFUL_FIELD])) {
+            $value = (bool) $this[Message::SUCCESSFUL_FIELD];
+        } else {
+            $value = null;
+        }
+
         return $value != null && $value;
     }
 
-    public function toString()
-    {
-        return $this->getJSON();
-    }
-
-    public function setChannel($channel)
+    public function setChannel($channel = null)
     {
         if ($channel == null) {
             if (isset($this[self::CHANNEL_FIELD])) {
@@ -151,10 +136,12 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
         }
     }
 
-    public function setClientId($clientId)
+    public function setClientId($clientId = null)
     {
-        if ($clientId == null) {
-            unset($this[self::CLIENT_ID_FIELD]);
+        if ($clientId === null) {
+            if (isset($this[self::CLIENT_ID_FIELD])) {
+                unset($this[self::CLIENT_ID_FIELD]);
+            }
         } else {
             $this[self::CLIENT_ID_FIELD] = $clientId;
         }
@@ -162,17 +149,21 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
 
     public function setData($data = null)
     {
-        if ($data == null) {
-            unset($this[self::DATA_FIELD]);
+        if ($data === null) {
+            if (isset($this[self::DATA_FIELD])) {
+                unset($this[self::DATA_FIELD]);
+            }
         } else {
             $this[self::DATA_FIELD] = $data;
         }
     }
 
-    public function setId($id)
+    public function setId($id = null)
     {
-        if ($id == null && isset($this[self::ID_FIELD])) {
-            unset($this[self::ID_FIELD]);
+        if ($id === null) {
+            if (isset($this[self::ID_FIELD])) {
+                unset($this[self::ID_FIELD]);
+            }
         } else {
             $this[self::ID_FIELD] = $id;
         }
@@ -180,57 +171,9 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
 
     public function setSuccessful($successful)
     {
+        if (! is_bool($successful)) {
+            throw new \InvalidArgumentException();
+        }
         $this[self::SUCCESSFUL_FIELD] = $successful;
     }
-
-    public static function parseMessages($content)
-    {
-        $object = $messagesParser->parse(new JSON.StringSource(content));
-        if ($object instanceof Message.Mutable) {
-            return Collections.singletonList($object);
-        }
-        return $object;
-    }
-/*
-    protected static $jsonParser = new JSON();
-    private static function _messageParser = new JSON()
-    {
-        @Override
-        protected Map<String, Object> newMap()
-        {
-            return new HashMapMessage();
-        }
-
-        @Override
-        protected JSON contextFor(String field)
-        {
-            return jsonParser;
-        }
-    };
-    private static JSON messagesParser = new JSON()
-    {
-        @Override
-        protected Map<String, Object> newMap()
-        {
-            return new HashMapMessage();
-        }
-
-        @Override
-        protected Object[] newArray(int size)
-        {
-            return new Message.Mutable[size];
-        }
-
-        @Override
-        protected JSON contextFor(String field)
-        {
-            return jsonParser;
-        }
-
-        @Override
-        protected JSON contextForArray()
-        {
-            return _messageParser;
-        }
-    }; */
 }

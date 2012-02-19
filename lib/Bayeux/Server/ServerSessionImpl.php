@@ -2,6 +2,12 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Server\AbstractServerTransport\OneTimeScheduler;
+
+use Bayeux\Api\Server\ServerSession\DeQueueListener;
+use Bayeux\Api\Message;
+use Bayeux\Common\HashMapMessage;
+use Bayeux\Api\Server\ServerSession\MessageListener;
 use Bayeux\Api\Session;
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Api\Server\ServerSession\ServerSessionListener;
@@ -14,12 +20,12 @@ class ServerSessionImpl implements ServerSession
 {
     private static $_idCount; //=new AtomicLong();
 
-    private $_bayeux;
     private $_logger;
+    private $_bayeux;
     private $_id;
     private $_listeners = array();
     private $_extensions = array();
-    private $_queue= array(); // QUEUES
+    private $_queue; // QUEUES
     private $_localSession;
     private $_attributes = array();
     private $_connected;// = new AtomicBoolean();
@@ -29,32 +35,32 @@ class ServerSessionImpl implements ServerSession
     private $_scheduler;
     private $_advisedTransport;
 
-    private $_maxQueue=-1;
-    private $_transientTimeout=-1;
-    private $_transientInterval=-1;
-    private $_timeout=-1;
-    private $_interval=-1;
-    private $_maxInterval;
-    private $_maxLazy=-1;
+    private $_maxQueue = -1;
+    private $_transientTimeout = -1;
+    private $_transientInterval = -1;
+    private $_timeout = -1;
+    private $_interval = -1;
+    private $_maxInterval = -1;
+    private $_maxLazy = -1;
+    private $_maxServerInterval = -1;
     private $_metaConnectDelivery;
     private $_batch;
     private $_userAgent;
     private $_connectTimestamp=-1;
     private $_intervalTimestamp;
-    private $_lastInterval;
     private $_lastConnect;
     private $_lazyDispatch;
-
     private $_lazyTask;
 
     /* ------------------------------------------------------------ */
     public function __construct(BayeuxServerImpl $bayeux, LocalSessionImpl $localSession = null, $idHint = null)
     {
+        $this->_queue = new \SplQueue();
         $this->_subscribedTo = new \SplObjectStorage();
 
-        $this->_bayeux=$bayeux;
+        $this->_bayeux = $bayeux;
         //$this->_logger=$bayeux->getLogger();
-        $this->_localSession=$localSession;
+        $this->_localSession = $localSession;
 
         $id = '';
         $len = 20;
@@ -74,7 +80,7 @@ class ServerSessionImpl implements ServerSession
         $this->_id = $id;
         $transport = $this->_bayeux->getCurrentTransport();
         if ($transport != null) {
-            //$this->_intervalTimestamp = System.currentTimeMillis() + $transport->getMaxInterval();
+            $this->_intervalTimestamp = microtime() + $transport->getMaxInterval();
         }
     }
 
@@ -97,16 +103,55 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    protected function sweep($now)
+    public function sweep($now)
     {
-        if ($this->_intervalTimestamp!=0 && now>_intervalTimestamp)
-        {
-            if ($this->_logger.isDebugEnabled())
-            $this->_logger.debug("Expired interval "+ServerSessionImpl.this);
-                if ($this->_scheduler!=null)
-                $this->_scheduler.cancel();
-            $this->_bayeux.removeServerSession(ServerSessionImpl.this,true);
+        if ($this->isLocalSession()) {
+            return;
         }
+
+        $remove = false;
+        $scheduler = null;
+        if ($this->_intervalTimestamp == 0)
+        {
+            if ($this->_maxServerInterval > 0 && $now > $this->_connectTimestamp + $this->_maxServerInterval)
+            {
+                //_logger.info("Emergency sweeping session {}", this);
+                $remove = true;
+            }
+        }
+        else
+        {
+            if ($now > $this->_intervalTimestamp)
+            {
+                //_logger.debug("Sweeping session {}", this);
+                $remove = true;
+            }
+        }
+        if ($remove) {
+            $scheduler = $this->_scheduler;
+        }
+        if ($remove)
+        {
+            if ($scheduler != null) {
+                $scheduler->cancel();
+            }
+            $this->_bayeux->removeServerSession($this, true);
+        }
+    }
+
+    public function getSubscriptions() {
+        return array_keys($this->_subscribedTo);
+    }
+
+    public function removeExtension(Extension $extension)
+    {
+        $this->_extensions.remove($extension);
+    }
+
+    /* ------------------------------------------------------------ */
+    public function addExtension(Extension $extension)
+    {
+        $this->_extensions[] = $extension;
     }
 
     /* ------------------------------------------------------------ */
@@ -116,23 +161,12 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    public function addExtension(Extension $extension)
-    {
-        $this->_extensions[] = $extension;
-    }
-
-    public function removeExtension(Extension $extension)
-    {
-        $this->_extensions.remove(extension);
-    }
-
-    /* ------------------------------------------------------------ */
     public function batch($batch)
     {
         $this->startBatch();
         try
         {
-            $batch.run();
+            $batch->run();
         } catch (\Exception $e)
         {
             $this->endBatch();
@@ -184,29 +218,25 @@ class ServerSessionImpl implements ServerSession
             return;
         }
 
+        $this->_bayeux->freeze($mutable);
+
+        $maxQueueSize = $this->_maxQueue;
+        $queueSize = count($this->_queue);
         foreach ($this->_listeners as $listener)
         {
-            try
+            if ($maxQueueSize > 0 && $queueSize > $maxQueueSize && $listener instanceof MaxQueueListener)
             {
-                if ($listener instanceof MaxQueueListener && $this->_maxQueue >=0 && count($this->_queue) >= $this->_maxQueue)
-                {
-                    if (!$listener->queueMaxed($this, $from, $message))
+                if (!$this->notifyQueueMaxed($listener, $from, $message))
                     return;
-                }
-                if ($listener instanceof MessageListener)
-                {
-                    if (!$listener->onMessage($this,$from,$message)) {
-                        return;
-                    }
-                }
             }
-            catch(\Exception $e)
+            if ($listener instanceof MessageListener)
             {
-                $this->_bayeux->getLogger()->warn("Exception while invoking listener " . $listener, $e);
+                if (!$this->notifyOnMessage($listener, $from, $message))
+                    return;
             }
         }
 
-        $this->_queue[] = $message;
+        $this->_queue->enqueue($message);
         $wakeup = $this->_batch == 0;
 
         if ($wakeup)
@@ -219,62 +249,72 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
+    private function notifyQueueMaxed($listener, ServerSession $from, ServerMessage $message)
+    {
+        if (! $listener instanceof MaxQueueListener || ! $listener instanceof MessageListener ) {
+            throw new \InvalidArgumentException();
+        }
+        try
+        {
+            return $listener->queueMaxed($this, $from, $message);
+        }
+        catch (Exception $x)
+        {
+            echo ("Exception while invoking listener " . $listener . $x);
+            return true;
+        }
+    }
+
     /* ------------------------------------------------------------ */
     public function handshake()
     {
         $this->_handshook = true;
+
+        $transport = $this->_bayeux->getCurrentTransport();
+        if ($transport != null)
+        {
+            $this->_maxQueue = $transport->getOption("maxQueue", -1);
+            $this->_maxInterval = $this->_interval >= 0 ? $this->_interval + $transport->getMaxInterval() : $transport->getMaxInterval();
+            $this->_maxServerInterval = $transport->getOption("maxServerInterval", 10 * $this->_maxInterval);
+            $this->_maxLazy = $transport->getMaxLazyTimeout();
+            if ($this->_maxLazy > 0)
+            {
+                /*$this->_lazyTask = new Timeout.Task()
+                {
+                    @Override
+                    public void expired()
+                    {
+                        flush();
+                    }
+
+                    @Override
+                    public String toString()
+                    {
+                        return "LazyTask@" + getId();
+                    }
+                };*/
+            }
+        }
     }
 
     /* ------------------------------------------------------------ */
     public function connect()
     {
         $this->_connected = true;
-
-        if ($this->_connectTimestamp == -1)
-        {
-            $transport = $this->_bayeux->getCurrentTransport();
-
-            if ($transport != null)
-            {
-                $this->_maxQueue = $transport->getOption("maxQueue", -1);
-
-                $this->_maxInterval = $this->_interval >= 0 ? ($this->_interval + $transport->getMaxInterval()-$transport->getInterval()) : $transport->getMaxInterval();
-                $this->_maxLazy = $transport->getMaxLazyTimeout();
-
-                if ($this->_maxLazy > 0)
-                {
-                    /* $this->_lazyTask=new Timeout.Task()
-                    {
-                        @Override
-                        public void expired()
-                        {
-                            _lazyDispatch=false;
-                            flush();
-                        }
-
-                        @Override
-                        public String toString()
-                        {
-                            return "LazyTask@"+getId();
-                        }
-                    }; */
-                }
-            }
-        }
         $this->cancelIntervalTimeout();
     }
 
     /* ------------------------------------------------------------ */
     public function disconnect()
     {
-        $connected=$this->_bayeux.removeServerSession(this,false);
+        $connected = $this->_bayeux->removeServerSession(this,false);
         if ($connected)
         {
             $message = $this->_bayeux->newMessage();
-            $message->setClientId(getId());
+            $message->setClientId($this->getId());
             $message->setChannel(Channel::META_DISCONNECT);
             $message->setSuccessful(true);
-            $this->deliver(this,message);
+            $this->deliver($this, $message);
             if (count($this->_queue)>0) {
                 $this->flush();
             }
@@ -301,7 +341,7 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function isLocalSession()
     {
-        return $this->_localSession!=null;
+        return $this->_localSession != null;
     }
 
     /* ------------------------------------------------------------ */
@@ -343,32 +383,52 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function addQueue(ServerMessage $message)
     {
-        $this->_queue->add($message);
+        $this->_queue->enqueue($message);
     }
 
     /* ------------------------------------------------------------ */
-    public function replaceQueue(array $queue)
+    public function replaceQueue(\SplQueue $queue)
     {
-            $this->_queue.clear();
-            $this->_queue.addAll($queue);
+        while ($this->_queue->valid()) {
+            $this->_queue->dequeue();
+        }
+
+        foreach ($queue as $value) {
+            $this->_queue->enqueue($value);
+        }
     }
 
     /* ------------------------------------------------------------ */
     public function takeQueue()
     {
-        $copy = array();
-            if (empty($this->_queue))
+        $copy = new \SplQueue();
+        if (! $this->_queue->isEmpty())
+        {
+            foreach ($this->_listeners as $listener)
             {
-                foreach ($this->_listeners as $listener)
-                {
-                    if (listener instanceof DeQueueListener) {
-                        $listener->deQueue($this, $this->_queue);
-                    }
+                if ($listener instanceof DeQueueListener) {
+                    $listener->deQueue($listener, $this, $this->_queue);
                 }
-                $copy->addAll($this->_queue);
-                $this->_queue->clear();
             }
+            $copy = clone $this->_queue;
+            while ($this->_queue->valid()) {
+                $this->_queue->dequeue();
+            }
+        }
         return $copy;
+    }
+
+    private function notifyDeQueue(DeQueueListener $listener, ServerSession $serverSession, $queue)
+    {
+        try
+        {
+            $listener->deQueue($serverSession, $queue);
+        }
+        catch (Exception $x)
+        {
+            echo "Exception while invoking listener " . $listener . $x;
+            //_logger.info("Exception while invoking listener " + listener, x);
+        }
     }
 
     /* ------------------------------------------------------------ */
@@ -378,56 +438,68 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    public function setScheduler(AbstractServerTransport\Scheduler $scheduler)
+    public function setScheduler(AbstractServerTransport\Scheduler $newScheduler = null)
     {
-            if ($scheduler == null)
-            {
-                if ($this->_scheduler!=null)
-                {
-                    $this->_scheduler->cancel();
-                    $this->_scheduler = null;
-                }
+        if ($newScheduler == null)
+        {
+            $oldScheduler = $this->_scheduler;
+            if ($oldScheduler != null) {
+                $this->_scheduler = null;
             }
-            else
-            {
-                if ($this->_scheduler!=null && $this->_scheduler!=$scheduler)
+            if ($oldScheduler != null) {
+                $oldScheduler->cancel();
+            }
+        }
+        else
+        {
+            $oldScheduler;
+            $schedule = false;
+                $oldScheduler = $this->_scheduler;
+                $this->_scheduler = $newScheduler;
+                if ($this->_queue.size() > 0 && $this->_batch == 0)
                 {
-                    $this->_scheduler->cancel();
-                }
-
-                $this->_scheduler=$scheduler;
-
-                if ($this->_queue.size()>0 && $this->_batch==0)
-                {
-                    $this->_scheduler.schedule();
-                    if ($this->_scheduler instanceof OneTimeScheduler) {
-                        $this->_scheduler=null;
+                    $schedule = true;
+                    if ($newScheduler instanceof OneTimeScheduler) {
+                        $this->_scheduler = null;
                     }
                 }
-            }
+            if ($oldScheduler != null && $oldScheduler != $newScheduler)
+                $oldScheduler->cancel();
+            if ($schedule)
+                $newScheduler->schedule();
+        }
     }
 
     /* ------------------------------------------------------------ */
     public function flush()
     {
-        if ($this->_lazyDispatch && _lazyTask!=null) {
-            $this->_bayeux.cancelTimeout(_lazyTask);
+        if ($this->_lazyDispatch)
+        {
+            $this->_lazyDispatch = false;
+            if ($this->_lazyTask != null)
+                $this->_bayeux->cancelTimeout($this->_lazyTask);
         }
 
-        $scheduler=$this->_scheduler;
-        if ($scheduler!=null)
+        $scheduler = $this->_scheduler;
+
+        if ($scheduler != null)
         {
-            if ($this->_scheduler instanceof OneTimeScheduler) {
-                $this->_scheduler=null;
-            }
-            $scheduler.schedule();
+            if ($this->_scheduler instanceof OneTimeScheduler)
+                $this->_scheduler = null;
+        }
+
+        if ($scheduler != null)
+        {
+            $scheduler->schedule();
+            // If there is a scheduler, then it's a remote session
+            // and we should not perform local delivery, so we return
             return;
         }
 
         // do local delivery
-        if  ($this->_localSession != null && count($this->_queue) > 0)
+        if ($this->_localSession != null && count($this->_queue) > 0)
         {
-            foreach ($this->takeQueue() as $msg )
+            foreach ($this->takeQueue() as $msg)
             {
                 if ($msg instanceof Message\Mutable) {
                     $this->_localSession->receive($msg);
@@ -441,12 +513,13 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function flushLazy()
     {
-            if ($this->_maxLazy==0) {
+            if ($this->_maxLazy < 0) {
                 $this->flush();
-            } else if ($this->_maxLazy>0 && !$this->_lazyDispatch)
+
+            } else if (! $this->_lazyDispatch)
             {
-                $this->_lazyDispatch=true;
-                $this->_bayeux.startTimeout(_lazyTask,_connectTimestamp%_maxLazy);
+                $this->_lazyDispatch = true;
+                $this->_bayeux->startTimeout($this->_lazyTask, $this->_connectTimestamp % $this->_maxLazy);
             }
     }
 
@@ -465,19 +538,27 @@ class ServerSessionImpl implements ServerSession
     public function cancelIntervalTimeout()
     {
             $now = microtime();
-            if ($this->_intervalTimestamp > 0) {
-                $this->_lastInterval = $now - ($this->_intervalTimestamp - $this->_maxInterval);
-            }
             $this->_connectTimestamp = $now;
             $this->_intervalTimestamp = 0;
     }
 
     /* ------------------------------------------------------------ */
-    public function startIntervalTimeout()
+    public function startIntervalTimeout($defaultInterval)
     {
-            $now = System.currentTimeMillis();
-            $this->_lastConnect=$now-$this->_connectTimestamp;
-            $this->_intervalTimestamp=$now+_maxInterval;
+        $interval = $this->calculateInterval($defaultInterval);
+            $now = microtime();
+            $this->_lastConnect = $now - $this->_connectTimestamp;
+            $this->_intervalTimestamp = $now + $interval + $this->_maxInterval;
+    }
+
+    protected function getMaxInterval()
+    {
+        return $this->_maxInterval;
+    }
+
+    public function getIntervalTimestamp()
+    {
+        return $this->_intervalTimestamp;
     }
 
     /* ------------------------------------------------------------ */
@@ -526,78 +607,117 @@ class ServerSessionImpl implements ServerSession
     {
         if ($message->isMeta())
         {
-            foreach ($this->_extensions as $ext ) {
-                if (!$ext->rcvMeta($this, $message)) {
+            foreach ($this->_extensions as $extension ) {
+                if (! $this->notifyRcvMeta($extension, $message)) {
                     return false;
                 }
             }
         }
         else
         {
-            foreach ($this->_extensions as $ext) {
-                if (!$ext->rcv($this, $message)) {
+            foreach ($this->_extensions as $extension) {
+                if (!$this->notifyRcv($extension, $message)) {
                     return false;
                 }
             }
         }
+
         return true;
+    }
+
+    private function notifyRcvMeta(Extension $extension, Mutable $message)
+    {
+        try
+        {
+            return $extension->rcvMeta(this, $message);
+        }
+        catch (\Exception $x)
+        {
+            echo "Exception while invoking extension " . $extension . $x;
+            //_logger.info("Exception while invoking extension " + extension, x);
+            return true;
+        }
+    }
+
+    private function notifyRcv(Extension $extension, Mutable $message)
+    {
+        try
+        {
+            return $extension->rcv($this, $message);
+        }
+        catch (\Exception $x)
+        {
+            echo "Exception while invoking extension " . $extension . $x;
+            //_logger.info("Exception while invoking extension " + extension, x);
+            return true;
+        }
     }
 
     /* ------------------------------------------------------------ */
     public function extendSendMeta(ServerMessage\Mutable $message)
     {
         if (!$message->isMeta()) {
-            throw new IllegalStateException();
+            throw new \InvalidArgumentException();
         }
 
-        foreach ($this->_extensions as $ext) {
-            if (!$ext->sendMeta($this,message)) {
+        foreach ($this->_extensions as $extetion) {
+            if (! $this->notifySendMeta($extension, $message)) {
                 return false;
             }
         }
         return true;
     }
 
+    private function notifySendMeta(Extension $extension, Mutable $message)
+    {
+        try
+        {
+            return $extension->sendMeta($this, $message);
+        }
+        catch (\Exception $x)
+        {
+            echo "Exception while invoking extension " , $extension . $x;
+            //_logger.info("Exception while invoking extension " + extension, x);
+            return true;
+        }
+    }
+
     /* ------------------------------------------------------------ */
     public function extendSendMessage(ServerMessage $message)
     {
         if ($message->isMeta()) {
-            throw new IllegalStateException();
+            throw new \InvalidArgumentException();
         }
 
-        foreach ($this->_extensions as $ext)
+        foreach ($this->_extensions as $extension)
         {
-            $message=$ext->send($this, $message);
-            if ($message==null) {
+            $message = $this->notifySend($extension, $message);
+            if ($message == null) {
                 return null;
             }
         }
         return $message;
     }
 
-    /* ------------------------------------------------------------ */
-    public function getAdvice()
+    private function notifySend(Extension $extension, ServerMessage $message)
     {
-        $transport = $this->_bayeux->getCurrentTransport();
-        if ($transport==null) {
-            return null;
+        try
+        {
+            return $extension->send($this, $message);
         }
-
-        $timeout = $this->getTimeout() < 0 ? $transport->getTimeout() : $this->getTimeout();
-        $interval = $this->getInterval() < 0 ? $transport->getInterval() : $this->getInterval();
-
-        return new JSON.Literal("{\"reconnect\":\"retry\"," +
-                "\"interval\":" + interval + "," +
-                "\"timeout\":" + timeout + "}");
+        catch (\Exception $x)
+        {
+            echo "Exception while invoking extension " . $extension . $x;
+            //_logger.info("Exception while invoking extension " + extension, x);
+            return $message;
+        }
     }
 
-    /* ------------------------------------------------------------ */
     public function reAdvise()
     {
-        $this->_advisedTransport=null;
+        $this->_advisedTransport = null;
     }
 
-    /* ------------------------------------------------------------ */
     public function takeAdvice()
     {
         $transport = $this->_bayeux->getCurrentTransport();
@@ -605,37 +725,46 @@ class ServerSessionImpl implements ServerSession
         if ($transport != null && $transport != $this->_advisedTransport)
         {
             $this->_advisedTransport = $transport;
-            return $this->getAdvice();
+
+            // The timeout is calculated based on the values of the session/transport
+            // because we want to send to the client the *next* timeout
+            $timeout = $this->getTimeout() < 0 ? $transport->getTimeout() : $this->getTimeout();
+
+            // The interval is calculated using also the transient value
+            // because we want to send to the client the *current* interval
+            $interval = $this->calculateInterval($transport->getInterval());
+
+            $advice = array();
+            $advice[Message::RECONNECT_FIELD] = Message::RECONNECT_RETRY_VALUE;
+            $advice[Message::INTERVAL_FIELD] = $interval;
+            $advice[Message::TIMEOUT_FIELD] = $timeout;
+            return $advice;
         }
 
         // advice has not changed, so return null.
         return null;
     }
 
-    /* ------------------------------------------------------------ */
     public function getTimeout()
     {
         return $this->_timeout;
     }
 
-    /* ------------------------------------------------------------ */
     public function getInterval()
     {
         return $this->_interval;
     }
 
-    /* ------------------------------------------------------------ */
     public function setTimeout($timeoutMS)
     {
-        $this->_timeout=$timeoutMS;
-        $this->_advisedTransport=null;
+        $this->_timeout = $timeoutMS;
+        $this->_advisedTransport = null;
     }
 
-    /* ------------------------------------------------------------ */
     public function setInterval($intervalMS)
     {
-        $this->_interval=$intervalMS;
-        $this->_advisedTransport=null;
+        $this->_interval = $intervalMS;
+        $this->_advisedTransport = null;
     }
 
     /* ------------------------------------------------------------ */
@@ -643,14 +772,15 @@ class ServerSessionImpl implements ServerSession
      * @param timedout
      * @return True if the session was connected.
      */
-    protected function removed($timedout)
+    public function removed($timedout)
     {
         $connected = $this->_connected;
         $this->_connected = false;
         $handshook = $this->_handshook;
+        $this->_handshoo = false;
         if ($connected || $handshook)
         {
-            foreach ($this->_subscribedTo as $channel => $value )
+            foreach ($this->_subscribedTo as $channel)
             {
                 $channel->unsubscribe($this);
             }
@@ -658,11 +788,24 @@ class ServerSessionImpl implements ServerSession
             foreach ($this->_listeners as $listener)
             {
                 if ($listener instanceof ServerSession\RemoveListener) {
-                    $listener->removed($this, $timedout);
+                    $this->notifyRemoved($listener, $this, $timedout);
                 }
             }
         }
         return $connected;
+    }
+
+    private function notifyRemoved(ServerSession\RemoveListener $listener, ServerSession $serverSession, $timedout)
+    {
+        try
+        {
+            $listener->removed($serverSession, $timedout);
+        }
+        catch (\Exception $x)
+        {
+            echo "Exception while invoking listener " . $listener . $x;
+            //_logger.info("Exception while invoking listener " + listener, x);
+        }
     }
 
     /* ------------------------------------------------------------ */
@@ -684,7 +827,7 @@ class ServerSessionImpl implements ServerSession
     }
 
     /* ------------------------------------------------------------ */
-    public function unsubscribedTo(ServerChannelImpl $channel)
+    public function unsubscribedFrom(ServerChannelImpl $channel)
     {
         $this->_subscribedTo->detach($channel);
     }
@@ -711,17 +854,14 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function toDetailString()
-    {
-        return $this->_id+",lc=".$this->_lastConnect+",li=".$this->_lastInterval;
+    public function __toString() {
+        return $this->toString();
     }
 
     /* ------------------------------------------------------------ */
-    //@Override
     public function toString()
     {
-        return $this->_id;
+        return sprintf("%s - last connect %d ms ago", $this->_id, $this->_lastConnect);
     }
 
     public function calculateTimeout($defaultTimeout)
@@ -752,6 +892,10 @@ class ServerSessionImpl implements ServerSession
 
     /**
      * Updates the transient timeout with the given value.
+     * The transient timeout is the one sent by the client, that should
+     * temporarily override the session/transport timeout, for example
+     * when the client sends {timeout:0}
+     *
      * @param timeout the value to update the timeout to
      * @see #updateTransientInterval(long)
      */
@@ -761,7 +905,11 @@ class ServerSessionImpl implements ServerSession
     }
 
     /**
-     * Updates the transient timeout with the given value.
+     * Updates the transient interval with the given value.
+     * The transient interval is the one sent by the client, that should
+     * temporarily override the session/transport interval, for example
+     * when the client sends {timeout:0,interval:60000}
+     *
      * @param interval the value to update the interval to
      * @see #updateTransientTimeout(long)
      */

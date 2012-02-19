@@ -15,22 +15,9 @@ use Bayeux\Common\AbstractClientSession\AbstractSessionChannel;
 class LocalChannel extends AbstractSessionChannel
 {
 
-    private $_localSession;
-    private $_bayeux;
-    private $_session;
-
-    /* ------------------------------------------------------------ */
     public function __construct(ChannelId $id)
     {
         parent::__construct($id);
-    }
-
-    public function init(LocalSessionImpl $localSession, BayeuxServerImpl $bayeux, &$session) {
-        $this->_localSession = $localSession;
-        //$localSession->setSession($this, $session);
-
-        $this->_bayeux = $bayeux;
-        $this->_session = $session;
     }
 
     /* ------------------------------------------------------------ */
@@ -83,7 +70,7 @@ class LocalChannel extends AbstractSessionChannel
     {
         $message = $this->_bayeux->newMessage();
         $message->setChannel(Channel::META_UNSUBSCRIBE);
-        $message->put(Message::SUBSCRIPTION_FIELD, $this->getId());
+        $message[Message::SUBSCRIPTION_FIELD] = $this->getId();
         $message->setId($this->_localSession->newMessageId());
 
         $this->_localSession->send($this->_session, $message);

@@ -32,6 +32,7 @@ interface Message //extends Map<String, Object>
     const SUPPORTED_CONNECTION_TYPES_FIELD = "supportedConnectionTypes";
     const RECONNECT_FIELD = "reconnect";
     const INTERVAL_FIELD = "interval";
+    const TIMEOUT_FIELD = "timeout";
     const RECONNECT_RETRY_VALUE = "retry";
     const RECONNECT_HANDSHAKE_VALUE = "handshake";
     const RECONNECT_NONE_VALUE = "none";

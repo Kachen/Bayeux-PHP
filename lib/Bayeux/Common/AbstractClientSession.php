@@ -2,10 +2,13 @@
 
 namespace Bayeux\Common;
 
+use Bayeux\Api\Client\ClientSession\Extension;
+
+use Bayeux\Common\AbstractClientSession\AbstractSessionChannel;
+use Bayeux\Common\AbstractClientSession\MarkableReference;
 use Bayeux\Api\Client\ClientSession;
 use Bayeux\Api\ChannelId;
 use Bayeux\Api\Message;
-use Bayeux\Api\Cliente\ClientSession\Extension;
 
 /**
  * <p>Partial implementation of {@link ClientSession}.</p>
@@ -13,17 +16,17 @@ use Bayeux\Api\Cliente\ClientSession\Extension;
  */
 abstract class AbstractClientSession implements ClientSession
 {
+    //protected static $logger;
+    private $_idGen = 0;
     private $_extensions = array();
     private $_attributes = array();
     private $_channels = array();
-    private $_batch;
-    private $_idGen;
+    private $_batch = 0;
+
 
     /* ------------------------------------------------------------ */
     protected function __construct()
     {
-        $this->_batch = 0;// = new AtomicInteger();
-        $this->_idGen = 0;// = new AtomicInteger(0);
     }
 
     /* ------------------------------------------------------------ */
@@ -88,6 +91,8 @@ abstract class AbstractClientSession implements ClientSession
         return true;
     }
 
+    protected abstract function newChannelId($channelId);
+
     /* ------------------------------------------------------------ */
     protected abstract function newChannel(ChannelId $channelId = null);
 
@@ -116,15 +121,29 @@ abstract class AbstractClientSession implements ClientSession
     }
 
     /* ------------------------------------------------------------ */
-    protected function getChannels()
+    public function getChannels()
     {
-        return $this->_channels;
+        $channels = &$this->_channels;
+        return $channels;
+    }
+
+    public function removeChannel($id, AbstractSessionChannel $channel) {
+        if (! is_string($id)) {
+            throw new \InvalidArgumentException();
+        }
+        if (isset($this->_channels[$id])) {
+            if ($this->_channels[$id] === $channel) {
+                unset($this->_channels[$id]);
+                return true;
+            }
+        }
+        return false;
     }
 
     /* ------------------------------------------------------------ */
     public function startBatch()
     {
-        $this->_batch->ncrementAndGet();
+        ++$this->_batch;
     }
 
     /* ------------------------------------------------------------ */
@@ -133,7 +152,7 @@ abstract class AbstractClientSession implements ClientSession
     /* ------------------------------------------------------------ */
     public function endBatch()
     {
-        if ($this->_batch->decrementAndGet() == 0)
+        if (--$this->_batch == 0)
         {
             $this->sendBatch();
             return true;
@@ -221,20 +240,45 @@ abstract class AbstractClientSession implements ClientSession
             return;
         }
 
-        $channel = $this->getChannel($id);
-        $channelId = $channel->getChannelId();
-
+        $channelRef = $this->getReleasableChannel($id);
+        $channel = $channelRef->getReference();
         $channel->notifyMessageListeners($message);
+        if ($channelRef->isMarked()) {
+            $channel->release();
+        }
 
-        foreach ($channelId->getWilds() as $channelPattern)
+        $channelId = $channel->getChannelId();
+        foreach ($channelId->getWilds() as $wildChannelName )
         {
-            $channelIdPattern = $this->newChannelId($channelPattern);
-            if ($channelIdPattern->matches($channelId))
-            {
-                $wildChannel = $this->getChannel($channelPattern);
-                $wildChannel->notifyMessageListeners($message);
+            $wildChannelRef = $this->getReleasableChannel($wildChannelName);
+            $wildChannel = $wildChannelRef->getReference();
+            $wildChannel->notifyMessageListeners($message);
+            if ($wildChannelRef->isMarked()) {
+                $wildChannel->release();
             }
         }
+    }
+
+    private function getReleasableChannel($id)
+    {
+        // Use getChannels().get(channelName) instead of getChannel(channelName)
+        // to avoid to cache channels that can be released immediately.
+
+        if (ChannelId::staticIsMeta($id)) {
+            $channel = $this->getChannel($id);
+        } else {
+            $channels = $this->getChannels();
+            if (empty($channels[$id])) {
+                $channel = null;
+            } else {
+                $channel = $channels[$id];
+            }
+        }
+
+        if ($channel != null) {
+            return new MarkableReference($channel, false);
+        }
+        return new MarkableReference($this->newChannel($this->newChannelId($id)), true);
     }
 
     /* ------------------------------------------------------------ */

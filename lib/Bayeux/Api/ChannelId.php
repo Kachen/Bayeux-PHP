@@ -24,187 +24,212 @@ class ChannelId
     const WILD = "*";
     const DEEPWILD = "**";
 
-    private $_name;
-    public $_segments = array();
+    private $_id;
+    private $_segments = array();
     private $_wild;
     private $_wilds = array();
     private $_parent;
 
-    public function __construct($name)
+    public function __construct($id)
  {
-        if (! is_string($name)) {
+        if (! is_string($id)) {
             // FIXME: correção
             throw new \Exception('Alterar para a exception correta de argumetno');
         }
 
-        $this->_name = $name;
-
-        if ($name == null || strlen($name) == 0 || $name[0] != '/' || '/' == $name) {
-            throw new \InvalidArgumentException($name);
+        if (strlen($id) == 0 || $id[0] != '/' || '/' == $id) {
+            throw new \InvalidArgumentException($id);
         }
 
-        $wilds = array();
+        $id = rtrim($id, '/');
+        $this->_id = $id;
+    }
 
-        $name = trim($name, '/');
-        $this->_segments = explode('/', $name);
-
-        $b = '/';
-        $countSegments = $this->depth();
-        for ($i=0; $i<$countSegments; $i++) {
-
-            if (empty($this->_segments[$i])) {
-                throw new \InvalidArgumentException($name);
-            }
-            if ($i > 0) {
-                $b .= "{$this->_segments[$i-1]}/";
-            }
-            $wilds[$countSegments-$i] = $b . '**';
-        }
-        $wilds[0] = "{$b}*";
-        $this->_parent = count($this->_segments) == 1 ? null : rtrim($b, '/');
-
-        if ($countSegments == 0) {
-            $this->_wild = 0;
-
-        } else if (self::WILD == $this->_segments[$countSegments - 1]) {
-            $this->_wild = 1;
-
-        } else if (self::DEEPWILD == $this->_segments[$countSegments - 1]) { // FIXME: talves de problema aqui
-            $this->_wild = 2;
-
-        } else {
-            $this->_wild = 0;
+    private function resolve()
+    {
+        if (!empty($this->_segments)) {
+            return;
         }
 
-        if ($this->_wild == 0) {
-            $this->_wilds = $wilds;
-        } else {
+        $segments = explode('/', ltrim($this->_id, '/'));
+        if (count($segments) < 1) {
+            throw new \Exception("Invalid channel id:" . $this);
+        }
+
+        $lastSegment = end($segments);
+
+        $wild = 0;
+        if (self::WILD == $lastSegment) {
+            $wild = 1;
+        } else if (self::DEEPWILD == $lastSegment) {
+            $wild = 2;
+        }
+
+        $this->_wild = $wild;
+
+        if ($wild > 0)
+        {
             $this->_wilds = array();
         }
+        else
+        {
+            $wilds = array();
+            $b = '';
+            $b = '/';
+            for ($i = 0; $i < count($segments); ++$i)
+            {
+                if (count(trim($segments[$i])) == 0) {
+                    throw new IllegalArgumentException("Invalid channel id:" . $this);
+                }
+                if ($i > 0) {
+                    $b .= $segments[$i - 1] . '/';
+                }
+                $wilds[count($segments) - $i] = $b . "**";
+            }
+            $wilds[0] = $b . "*";
+            $this->_wilds = $wilds;
+        }
+
+         $this->_parent = count($segments) == 1 ? null : substr($this->_id, 0, count($this->_id) - strlen($lastSegment) - 2);
+
+        // Volatile write, other members will be visible as well
+        $this->_segments = $segments;
     }
 
     public function isWild()
     {
+        $this->resolve();
         return $this->_wild > 0;
+    }
+
+    /**
+    * <p>Shallow wild {@code ChannelId}s end with a single wild character {@code "*"}
+    * and {@link #matches(ChannelId) match} non wild channels with
+    * the same {@link #depth() depth}.</p>
+    * <p>Example: {@code /foo/*} matches {@code /foo/bar}, but not {@code /foo/bar/baz}.</p>
+    *
+    * @return whether this {@code ChannelId} is a shallow wild channel id
+    */
+    public function isShallowWild()
+    {
+        return $this->isWild() && ! $this->isDeepWild();
     }
 
     public function isDeepWild()
     {
+        $this->resolve();
         return $this->_wild > 1;
-    }
-
-    public static function staticIsMeta($channelId) {
-        return self::_staticTypeSegment('meta', $channelId);
-    }
-
-    public static function staticIsService($channelId) {
-        return self::_staticTypeSegment('service', $channelId);
-    }
-
-    private static function _staticTypeSegment($segment, $channelId) {
-        return $channelId != '' && stripos($channelId, "/{$segment}/") === 0;
     }
 
     public function isMeta()
     {
-        return $this->_typeSegment('meta');
+        return self::staticIsMeta($this->_id);
     }
 
     public function isService()
     {
-        return $this->_typeSegment('service');
+        return self::staticIsService($this->_id);
     }
 
-    private function _typeSegment($segment) {
-        return count($this->_segments) > 0 && $segment == $this->_segments[0];
+    /**
+     * @return whether this {@code ChannelId} is neither {@link #isMeta() meta} nor {@link #isService() service}
+     */
+    public function isBroadcast()
+    {
+        return self::staticIsBroadcast($this->_id);
     }
 
-    //@Override
-    // FIXME: otimizar esse metodo pode removelo  ou alterar a forma de comparação retirado o for e pode coloar array() === array()
     public function equals($obj)
     {
         if ($this === $obj) {
             return true;
         }
 
-        if ($obj instanceof ChannelId)
+        if (! ($obj instanceof ChannelId)) {
+            return false;
+        }
+
+        return $this->_id = $obj->_id;
+    }
+
+    public function hashCode()
+    {
+        return sha1($this->_id);
+    }
+
+    /**
+     * <p>Tests whether this {@code ChannelId} matches the given {@code ChannelId}.</p>
+     * <p>If the given {@code ChannelId} is {@link #isWild() wild},
+     * then it matches only if it is equal to this {@code ChannelId}.</p>
+     * <p>If this {@code ChannelId} is non-wild,
+     * then it matches only if it is equal to the given {@code ChannelId}.</p>
+     * <p>Otherwise, this {@code ChannelId} is either shallow or deep wild, and
+     * matches {@code ChannelId}s with the same number of equal segments (if it is
+     * shallow wild), or {@code ChannelId}s with the same or a greater number of
+     * equal segments (if it is deep wild).</p>
+     *
+     * @param channelId the channelId to match
+     * @return true if this {@code ChannelId} matches the given {@code ChannelId}
+     */
+    public function matches(ChannelId $channelId)
+    {
+        $this->resolve();
+
+        if ($channelId->isWild()) {
+            return $this->equals($channelId);
+        }
+
+        switch ($this->_wild)
         {
-            $id = $obj;
-            if ($id->depth() == $this->depth())
+            case 0:
             {
-                for ($i = $id->depth(); $i-- > 0;) {
-                    if (! ($id->getSegment($i) == $this->getSegment($i))) {
+                return $this->equals($channelId);
+            }
+            case 1:
+            {
+                if (count($channelId->_segments) != count($this->_segments)) {
+                    return false;
+                }
+                for ($i = count($this->_segments) - 1; $i-- > 0; ) {
+                    if (! ($this->_segments[$i] == $channelId->getSegment($i))) {
                         return false;
                     }
                 }
                 return true;
             }
-        }
-
-        return false;
-    }
-
-    /* ------------------------------------------------------------ */
-    /** Match channel IDs with wildcard support
-     * @param name
-     * @return true if this channelID matches the passed channel ID. If this channel is wild, then matching is wild.
-     * If the passed channel is wild, then it is the same as an equals call.
-     */
-    public function matches(ChannelId $name)
-    {
-        if ($name->isWild()) {
-            return $this->equals($name);
-        }
-
-        switch($this->_wild)
-        {
-            case 0:
-                return $this->equals($name);
-            case 1:
-                if ($name->depth() != $this->depth()) {
-                    return false;
-                }
-                for ($i=$this->depth() - 1; $i-- > 0;) {
-                    if (!$this->getSegment($i) == $name->getSegment($i)) {
-                        return false;
-                    }
-                }
-                return true;
-
             case 2:
-                if ($name->depth() < $this->depth()) {
+            {
+                if ($channelId->depth() < $this->depth()) {
                     return false;
                 }
-                for ($i=count($this->_segments) - 1; $i-- > 0;) {
-                    if (! ($this->getSegment($i) == $name->getSegment($i))) {
+                for ($i = $this->depth() - 1; $i-- > 0; ) {
+                    if (! ($this->_segments[$i] == $channelId->getSegment($i))) {
                         return false;
                     }
                 }
                 return true;
+            }
+            default:
+            {
+                throw new \Exception();
+            }
         }
-        return false;
     }
 
-    //@Override
-    public function hashCode()
-    {
-        return $this->_name.hashCode();
-    }
-
-    //@Override
     public function toString()
     {
-        return $this->_name;
+        return $this->_id;
     }
 
     public function depth()
     {
+        $this->resolve();
         return count($this->_segments);
     }
 
-    /* ------------------------------------------------------------ */
     public function isAncestorOf(ChannelId $id)
     {
+        $this->resolve();
         if ($this->isWild() || $this->depth() >= $id->depth()) {
             return false;
         }
@@ -215,12 +240,13 @@ class ChannelId
                 return false;
             }
         }
+
         return true;
     }
 
-    /* ------------------------------------------------------------ */
     public function isParentOf(ChannelId $id)
     {
+        $this->resolve();
         if ($this->isWild() || $this->depth() != $id->depth()-1) {
             return false;
         }
@@ -234,33 +260,56 @@ class ChannelId
         return true;
     }
 
-    /* ------------------------------------------------------------ */
     public function getParent()
     {
+        $this->resolve();
         return $this->_parent;
     }
 
-    /* ------------------------------------------------------------ */
-    // FIXME: utilizar o empty ver ou issset ou cont ver qual tem melhor desempenho
     public function getSegment($i)
     {
+        $this->resolve();
         if ($i > $this->depth()) {
             return null;
         }
+
         if (isset($this->_segments[$i])) {
             return $this->_segments[$i];
         }
         return null;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * @return The list of wilds channels that match this channel, or
      * the empty list if this channel is already wild.
      */
     public function getWilds()
     {
+        $this->resolve();
         return $this->_wilds;
     }
 
+    public static function staticIsMeta($channelId) {
+        return self::_staticTypeSegment('meta', $channelId);
+    }
+
+    public static function staticIsService($channelId) {
+        return self::_staticTypeSegment('service', $channelId);
+    }
+
+    /**
+     * <p>Helper method to test if the string form of a {@code ChannelId}
+     * represents a {@link #isBroadcast()} broadcast} {@code ChannelId}.</p>
+     *
+     * @param channelId the channel id to test
+     * @return whether the given channel id is a broadcast channel id
+     */
+    public static function staticIsBroadcast($channelId)
+    {
+        return ! self::staticIsMeta($channelId) && ! self::staticIsService($channelId);
+    }
+
+    private static function _staticTypeSegment($segment, $channelId) {
+        return $channelId != '' && stripos($channelId, "/{$segment}/") === 0;
+    }
 }

@@ -25,10 +25,20 @@ class ConnectHandler extends HandlerListener
         $adviceIn = $message->getAdvice();
         if ($adviceIn != null)
         {
-            $timeout = $adviceIn["timeout"];
-            $session->updateTransientTimeout($timeout==null?-1:$timeout);
-            $interval = $adviceIn["interval"];
-            $session->updateTransientInterval($interval==null?-1:$interval);
+            if (isset($adviceIn["timeout"])) {
+                $timeout = $adviceIn["timeout"];
+            } else {
+                $timeout = -1;
+            }
+
+            if (isset($adviceIn["interval"])) {
+                $interval = $adviceIn["interval"];
+            } else {
+                $interval = -1;
+            }
+
+            $session->updateTransientTimeout($timeout);
+            $session->updateTransientInterval($interval);
             // Force the server to send the advice, as the client may
             // have forgotten it (for example because of a reload)
             $session->reAdvise();
@@ -41,7 +51,7 @@ class ConnectHandler extends HandlerListener
 
         // Send advice
         $adviceOut = $session->takeAdvice();
-        if ($adviceOut!=null) {
+        if ($adviceOut != null) {
             $reply[Message::ADVICE_FIELD] = $adviceOut;
         }
 

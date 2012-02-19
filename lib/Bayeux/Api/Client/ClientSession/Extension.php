@@ -1,6 +1,6 @@
 <?php
 
-namespace Bayeux\Api\Cliente\ClientSession;
+namespace Bayeux\Api\Client\ClientSession;
 
 use Bayeux\Api\Message;
 use Bayeux\Api\Client\ClientSession;

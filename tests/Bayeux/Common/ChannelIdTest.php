@@ -32,6 +32,7 @@ class ChannelIdTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals("bar", $channel->getSegment(1));
 
         $this->assertNull($channel->getSegment(2));
+        $this->assertNull($channel->getSegment(3));
     }
 
     public function testIsXxx()

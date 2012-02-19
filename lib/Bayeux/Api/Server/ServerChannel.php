@@ -2,7 +2,6 @@
 
 namespace Bayeux\Api\Server;
 
-use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Api\Session;
 
 /**

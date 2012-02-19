@@ -2,6 +2,8 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Common\IllegalStateException;
+
 use Bayeux\Server\LocalSessionImpl\LocalChannel;
 use Bayeux\Api\Server\LocalSession;
 use Bayeux\Common\AbstractClientSession;
@@ -20,7 +22,6 @@ use Bayeux\Api\Message;
  */
 class LocalSessionImpl extends AbstractClientSession implements LocalSession
 {
-    const LOCAL_ADVICE = "{\"interval\":-1}";
     private $_queue;
     private $_bayeux;
     private $_idHint;
@@ -71,8 +72,7 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
 //     @Override
     protected function sendBatch()
     {
-        $size = $this->_queue->count();
-        while(! $this->_queue->isEmpty())
+        while($this->_queue->valid())
         {
             $message = $this->_queue->dequeue();
             $this->doSend($this->_session, $message);
@@ -83,7 +83,7 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
     public function getServerSession()
     {
         if ($this->_session == null) {
-            throw new \Exception("!handshake");
+            throw new IllegalStateException();
         }
         return $this->_session;
     }
@@ -92,7 +92,7 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
     public function handshake($template = null)
     {
         if ($this->_session != null) {
-            throw new \Exception();
+            throw new \IllegalStateException();
         }
 
         $message = $this->_bayeux->newMessage();
@@ -108,7 +108,6 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         $this->doSend($session, $message);
 
         $reply = $message->getAssociated();
-
         if ($reply != null && $reply->isSuccessful())
         {
             $this->_session = $session;
@@ -116,7 +115,11 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
             $message = $this->_bayeux->newMessage();
             $message->setChannel(Channel::META_CONNECT);
             $message->setClientId($this->_session->getId());
-            $message[Message::ADVICE_FIELD] = self::LOCAL_ADVICE;
+
+            $a = $message->getAdvice(true);
+            $a['asf'] = '2';
+            $advice = $message->getAdvice(true);
+            $advice[Message::ADVICE_FIELD] = -1;
             $message->setId($this->newMessageId());
 
             $this->doSend($session, $message);
