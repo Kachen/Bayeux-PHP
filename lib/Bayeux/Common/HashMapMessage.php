@@ -10,7 +10,10 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
 
     public function getChannel()
     {
-        return $this[self::CHANNEL_FIELD];
+        if (isset($this[self::CHANNEL_FIELD])) {
+            return $this[self::CHANNEL_FIELD];
+        }
+        return null;
     }
 
     public function getChannelId()

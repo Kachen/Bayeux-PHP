@@ -89,7 +89,7 @@ class ServerChannelImpl implements ServerChannel
      */
     public function subscribe(ServerSessionImpl $session)
     {
-        if (!$session->isHandshook()) {
+        if (! $session->isHandshook()) {
             return false;
         }
 

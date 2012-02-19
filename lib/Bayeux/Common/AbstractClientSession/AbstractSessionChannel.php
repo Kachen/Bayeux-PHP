@@ -2,6 +2,8 @@
 
 namespace Bayeux\Common\AbstractClientSession;
 
+use Bayeux\Common\IllegalStateException;
+
 use Bayeux\Server\BayeuxServerImpl;
 
 use Bayeux\Common\AbstractClientSession;
@@ -82,14 +84,15 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
     public function subscribe(MessageListener $listener)
     {
         $this->throwIfReleased();
-        $this->_subscriptions[] = $listener;
-        //if ($added)
-        //{
+      //  if (! in_array($listener, $this->_subscriptions, true))
+      //  {
+         //   echo '---------------------- ';
+            $this->_subscriptions[] = $listener;
             $count = ++$this->_subscriptionCount; //->incrementAndGet(); FIXME: ATOMIC
             if ($count == 1) {
                 $this->sendSubscribe();
             }
-        //}
+       // }
     }
 
     /* ------------------------------------------------------------ */
@@ -101,7 +104,7 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
                 $this->unsubscribe($listener);
             }
         } else {
-            $key = array_search($listener, $this->_subscriptions);
+            $key = array_search($listener, $this->_subscriptions, true);
             if ($key !== false)
             {
                 unset($this->_subscriptions[$key]);
@@ -213,6 +216,7 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
         }
         catch (\Exception $x)
         {
+            throw $x;
             echo "Exception while invoking listener " . $listener . $x;
             //logger.info("Exception while invoking listener " + listener, x);
         }
@@ -269,7 +273,7 @@ abstract class AbstractSessionChannel implements ClientSessionChannel
     protected function throwIfReleased()
     {
         if ($this->isReleased()) {
-            throw new \Exception("Channel " . $this . " has been released");
+            throw new IllegalStateException("Channel " . $this . " has been released");
         }
     }
 

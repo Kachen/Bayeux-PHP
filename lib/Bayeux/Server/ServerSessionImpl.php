@@ -2,6 +2,8 @@
 
 namespace Bayeux\Server;
 
+use Bayeux\Api\Server\ServerSession\MaxQueueListener;
+
 use Bayeux\Server\AbstractServerTransport\OneTimeScheduler;
 
 use Bayeux\Api\Server\ServerSession\DeQueueListener;
@@ -178,25 +180,31 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function deliver(Session $from, $arg1, $data = null, $id = null)
     {
-        if (is_string($arg1) && is_object($data) && is_string($id)) {
-            $mutable = $this->_bayeux->newMessage();
-            $mutable->setChannel($channelId);
-            $mutable->setData($data);
-            $mutable->setId($id);
-            $immutable = $mutable;
-        } else if (! $arg1 instanceof ServerMessage\Mutable) {
+        if (is_string($arg1)) {
+            $channelId = $arg1;
+            $message = $this->_bayeux->newMessage();
+            $message->setChannel($channelId);
+            $message->setData($data);
+            $message->setId($id);
+
+        } else if (! ($arg1 instanceof ServerMessage\Mutable)) {
             throw new \InvalidArgumentException();
+
+        } else {
+            $message = $arg1;
         }
 
-        if (! $this->_bayeux->extendSend($from, $this, $immutable)) {
+        if ($from instanceof ServerSession) {
+            $session = $from;
+        } else {
+            $session = $from->getServerSession();
+        }
+
+        if (! $this->_bayeux->extendSend($session, $this, $message)) {
             return;
         }
 
-        if ($from instanceof LocalSession) {
-            $from = $from->getServerSession();
-        }
-
-        $this->doDeliver($from, $immutable);
+        $this->doDeliver($session, $message);
     }
 
     /* ------------------------------------------------------------ */
@@ -231,7 +239,7 @@ class ServerSessionImpl implements ServerSession
             }
             if ($listener instanceof MessageListener)
             {
-                if (!$this->notifyOnMessage($listener, $from, $message))
+                if (! $this->notifyOnMessage($listener, $from, $message))
                     return;
             }
         }
@@ -251,7 +259,7 @@ class ServerSessionImpl implements ServerSession
 
     private function notifyQueueMaxed($listener, ServerSession $from, ServerMessage $message)
     {
-        if (! $listener instanceof MaxQueueListener || ! $listener instanceof MessageListener ) {
+        if (! ($listener instanceof MaxQueueListener) || ! ($listener instanceof MessageListener) ) {
             throw new \InvalidArgumentException();
         }
         try
@@ -264,6 +272,21 @@ class ServerSessionImpl implements ServerSession
             return true;
         }
     }
+
+    private function notifyOnMessage(MessageListener $listener, ServerSession $from, ServerMessage $message)
+    {
+        try
+        {
+            return $listener->onMessage($this, $from, $message);
+        }
+        catch (\Exception $x)
+        {
+            throw $x;
+            //_logger.info("Exception while invoking listener " + listener, x);
+            return true;
+        }
+    }
+
 
     /* ------------------------------------------------------------ */
     public function handshake()
@@ -307,7 +330,7 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function disconnect()
     {
-        $connected = $this->_bayeux->removeServerSession(this,false);
+        $connected = $this->_bayeux->removeServerSession($this, false);
         if ($connected)
         {
             $message = $this->_bayeux->newMessage();
@@ -347,7 +370,7 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function startBatch()
     {
-            $this->_batch++;
+            ++$this->_batch;
     }
 
     /* ------------------------------------------------------------ */
@@ -389,10 +412,7 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function replaceQueue(\SplQueue $queue)
     {
-        while ($this->_queue->valid()) {
-            $this->_queue->dequeue();
-        }
-
+        $this->_queue->rewind();
         foreach ($queue as $value) {
             $this->_queue->enqueue($value);
         }
@@ -410,8 +430,9 @@ class ServerSessionImpl implements ServerSession
                     $listener->deQueue($listener, $this, $this->_queue);
                 }
             }
+
             $copy = clone $this->_queue;
-            while ($this->_queue->valid()) {
+            while (! $this->_queue->isEmpty()) {
                 $this->_queue->dequeue();
             }
         }
@@ -625,11 +646,11 @@ class ServerSessionImpl implements ServerSession
         return true;
     }
 
-    private function notifyRcvMeta(Extension $extension, Mutable $message)
+    private function notifyRcvMeta(Extension $extension, ServerMessage\Mutable $message)
     {
         try
         {
-            return $extension->rcvMeta(this, $message);
+            return $extension->rcvMeta($this, $message);
         }
         catch (\Exception $x)
         {
@@ -639,7 +660,7 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    private function notifyRcv(Extension $extension, Mutable $message)
+    private function notifyRcv(Extension $extension, ServerMessage\Mutable $message)
     {
         try
         {
@@ -660,7 +681,7 @@ class ServerSessionImpl implements ServerSession
             throw new \InvalidArgumentException();
         }
 
-        foreach ($this->_extensions as $extetion) {
+        foreach ($this->_extensions as $extension) {
             if (! $this->notifySendMeta($extension, $message)) {
                 return false;
             }
@@ -668,7 +689,7 @@ class ServerSessionImpl implements ServerSession
         return true;
     }
 
-    private function notifySendMeta(Extension $extension, Mutable $message)
+    private function notifySendMeta(Extension $extension, ServerMessage\Mutable $message)
     {
         try
         {
@@ -707,6 +728,7 @@ class ServerSessionImpl implements ServerSession
         }
         catch (\Exception $x)
         {
+            throw $x;
             echo "Exception while invoking extension " . $extension . $x;
             //_logger.info("Exception while invoking extension " + extension, x);
             return $message;

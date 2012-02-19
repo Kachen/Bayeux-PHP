@@ -202,6 +202,7 @@ JSON;
                 }
                 catch (UnsupportedOperationException $expected)
                 {
+                    $this->assertTrue(true);
                     break;
                 }
             }

@@ -20,14 +20,8 @@ class HashMapMessageTest extends \PHPUnit_Framework_TestCase
         $ext = $message->getExt(true);
         $ext['ext1'] = "extValue1";
 
-/*         $baos = new ByteArrayOutputStream();
-        $oos = new ObjectOutputStream(baos);
-        $oos->writeObject($message);
-        $oos->close();
+        $deserialized = unserialize(serialize($message));
 
-        $ois = new ObjectInputStream(new ByteArrayInputStream($baos->toByteArray()));
-        $deserialized = $ois->readObject();
-
-        $this->assertEquals(message, deserialized); */
+        $this->assertEquals($message, $deserialized);
     }
 }

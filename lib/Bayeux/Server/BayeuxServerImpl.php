@@ -522,8 +522,6 @@ class BayeuxServerImpl implements BayeuxServer
 
         if ($removed == $session)
         {
-            echo 'asf';
-            //$timedout
             foreach ($this->_listeners as $listener)
             {
                 if ($listener instanceof BayeuxServer\SessionListener) {
@@ -668,9 +666,9 @@ class BayeuxServerImpl implements BayeuxServer
         } */
 
         $reply = null;
-        if (!$this->extendRecv($session, $message) || $session != null && !$session->extendRecv($message))
+        if (! $this->extendRecv($session, $message) || $session != null && ! $session->extendRecv($message))
         {
-            $reply = $this->createReply(message);
+            $reply = $this->createReply($message);
             $this->error($reply, "404::message deleted");
         }
         else
@@ -710,7 +708,7 @@ class BayeuxServerImpl implements BayeuxServer
                 {
                     if ($channel->isMeta())
                     {
-                        if ($session == null && !Channel::META_HANDSHAKE == $channelName)
+                        if ($session == null && ! (Channel::META_HANDSHAKE == $channelName))
                         {
                             $reply = $this->createReply($message);
                             $this->unknownSession($reply);
@@ -726,7 +724,7 @@ class BayeuxServerImpl implements BayeuxServer
                         if ($session == null)
                         {
                             $reply = $this->createReply($message);
-                            $this->unknownSession(reply);
+                            $this->unknownSession($reply);
                         }
                         else
                         {
@@ -898,6 +896,7 @@ class BayeuxServerImpl implements BayeuxServer
         if ($to->isLazy()) {
             $mutable->setLazy(true);
         }
+
         foreach ($to->getListeners() as $listener) {
             if ($listener instanceof ServerChannel\MessageListener) {
                 if (! $this->notifyOnMessage($listener, $from, $to, $mutable)) {
@@ -944,7 +943,7 @@ class BayeuxServerImpl implements BayeuxServer
         // Call the leaf subscribers
         foreach ($to->getSubscribers() as $session)
         {
-            if ($wild_subscribers==null || !in_array($session->getId(), $wild_subscribers)) {
+            if ($wild_subscribers == null || ! in_array($session->getId(), $wild_subscribers)) {
                 $session->doDeliver($from, $mutable);
             }
         }
@@ -1066,13 +1065,15 @@ class BayeuxServerImpl implements BayeuxServer
             $i = new \ArrayIterator(array_reverse($this->_extensions, true));
             while($i->valid())
             {
-                if (! $i->next()->send($from, $to, $message))
+                if (! $i->current()->send($from, $to, $message))
                 {
                     /*if ($this->_logger->isDebugEnabled()) {
                         $this->_logger->debug("!  " . $message);
                     }*/
                     return false;
                 }
+
+                $i->next();
             }
         }
 

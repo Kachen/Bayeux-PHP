@@ -171,11 +171,12 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
         $session0->getChannel("/foo/bar")->unsubscribe($listener);
         $this->assertEquals(2, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
 
+
         $foobar0 = $session0->getChannel("/foo/bar");
         $foobar0->subscribe($listener);
         $foobar0->subscribe($listener);
 
-        $foostar0=$session0->getChannel("/foo/*");
+        $foostar0 = $session0->getChannel("/foo/*");
         $foostar0->subscribe($listener);
 
         $this->assertEquals(3, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
@@ -185,8 +186,8 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(false, $foobar0->isWild());
         $this->assertEquals(false, $foobar0->isMeta());
         $this->assertEquals(false, $foobar0->isService());
-        $foobar0->publish("hello");
 
+        $foobar0->publish("hello");
 
         $this->assertEquals($session0->getId(), $events->dequeue());
         $this->assertEquals("hello", $events->dequeue());
@@ -201,21 +202,17 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
         $foostar0->unsubscribe($listener);
 
 
-        /*$session1->batch(new Runnable()
-        {
-            public void run()
-            {*/
-                $foobar1 = $session1->getChannel("/foo/bar");
-                $foobar1->publish("part1");
-                $this->assertEquals(null, $events->dequeue());
-                $foobar1->publish("part2");
-            /*}
-        });*/
+        $session1->startBatch();
+        $foobar1 = $session1->getChannel('/foo/bar');
+        $foobar1->publish('part1');
+        $this->assertTrue($events->isEmpty());
+        $foobar1->publish('part2');
+        $session1->endBatch();
 
         $this->assertEquals($session1->getId(), $events->dequeue());
         $this->assertEquals("part1", $events->dequeue());
         $this->assertEquals($session2->getId(), $events->dequeue());
-        $this->assertEquals("part1", $events.poll());
+        $this->assertEquals("part1", $events->dequeue());
         $this->assertEquals($session0->getId(), $events->dequeue());
         $this->assertEquals("part1", $events->dequeue());
         $this->assertEquals($session0->getId(), $events->dequeue());
@@ -228,35 +225,35 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals("part2", $events->dequeue());
         $this->assertEquals($session0->getId(), $events->dequeue());
         $this->assertEquals("part2", $events->dequeue());
-exit;
-
-        $foobar0.unsubscribe();
-        $this->assertEquals(2,_bayeux.getChannel("/foo/bar").getSubscribers().size());
 
 
+        $foobar0->unsubscribe();
+        $this->assertEquals(2, count($this->_bayeux->getChannel("/foo/bar")->getSubscribers()));
 
 
-        $this->assertTrue(session0.isConnected());
-        $this->assertTrue(session1.isConnected());
-        $this->assertTrue(session2.isConnected());
-        $ss0=session0.getServerSession();
-        $ss1=session1.getServerSession();
-        $ss2=session2.getServerSession();
-        $this->assertTrue(ss0.isConnected());
-        $this->assertTrue(ss1.isConnected());
-        $this->assertTrue(ss2.isConnected());
 
-        $session0.disconnect();
-        $this->assertFalse(session0.isConnected());
-        $this->assertFalse(ss0.isConnected());
 
-        $session1.getServerSession().disconnect();
-        $this->assertFalse(session1.isConnected());
-        $this->assertFalse(ss1.isConnected());
+        $this->assertTrue($session0->isConnected());
+        $this->assertTrue($session1->isConnected());
+        $this->assertTrue($session2->isConnected());
+        $ss0=$session0->getServerSession();
+        $ss1=$session1->getServerSession();
+        $ss2=$session2->getServerSession();
+        $this->assertTrue($ss0->isConnected());
+        $this->assertTrue($ss1->isConnected());
+        $this->assertTrue($ss2->isConnected());
 
-        $session2.getServerSession().disconnect();
-        $this->assertFalse(session2.isConnected());
-        $this->assertFalse(ss2.isConnected());
+        $session0->disconnect();
+        $this->assertFalse($session0->isConnected());
+        $this->assertFalse($ss0->isConnected());
+
+        $session1->getServerSession()->disconnect();
+        $this->assertFalse($session1->isConnected());
+        $this->assertFalse($ss1->isConnected());
+
+        $session2->getServerSession()->disconnect();
+        $this->assertFalse($session2->isConnected());
+        $this->assertFalse($ss2->isConnected());
     }
 
 
@@ -271,8 +268,8 @@ exit;
         //session1.handshake();
 
         $session0->addExtension(new ClientSessionExtensionTest());
-        $session0->getServerSession()->addExtension(new ServerSessionExtensionTest());
-        $listener = new ClientSessionChannelMessageListenerTest();
+        $session0->getServerSession()->addExtension(new ServerSessionExtensionTest($this->_bayeux));
+        $listener = new ClientSessionChannelMessageListenerTest($events);
 
         $session0->getChannel("/foo/bar")->subscribe($listener);
         // session1.getChannel("/foo/bar").subscribe(listener);
@@ -384,7 +381,7 @@ class BayeuxServerExtensionTest implements BayeuxServer\Extension
         return true;
     }
 
-    public function send(ServerSession $from, ServerSession $to, ServerMessage\Mutable $message)
+    public function send(ServerSession $from, ServerSession $to = null, ServerMessage\Mutable $message)
     {
         if ("three" == $message->getData()) {
             $message->setData("four");
@@ -437,6 +434,12 @@ class ClientSessionExtensionTest implements ClientSession\Extension
 
 class ServerSessionExtensionTest implements ServerSession\Extension
 {
+    protected $_bayeux;
+
+    public function __construct(BayeuxServerImpl $bayeux) {
+        $this->_bayeux = $bayeux;
+    }
+
     public function rcv(ServerSession $from, ServerMessage\Mutable $message)
     {
         if ("two" == $message->getData()) {
@@ -472,6 +475,11 @@ class ServerSessionExtensionTest implements ServerSession\Extension
 
 class ClientSessionChannelMessageListenerTest implements ClientSessionChannel\MessageListener
 {
+    private $_events;
+    public function __construct(\SplQueue $events) {
+        $this->_events = $events;
+    }
+
     public function onMessage(ClientSessionChannel $channel, Message $message)
     {
         $this->_events->enqueue($channel->getSession()->getId());

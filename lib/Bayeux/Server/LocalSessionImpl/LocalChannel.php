@@ -30,8 +30,9 @@ class LocalChannel extends AbstractSessionChannel
     /* ------------------------------------------------------------ */
     public function publish($data, $messageId = null)
     {
+        $this->throwIfReleased();
         if ($this->_session == null) {
-            throw new \Exception("!handshake");
+            throw new \IllegalStateException("!handshake");
         }
 
         $message = $this->_bayeux->newMessage();

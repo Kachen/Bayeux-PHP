@@ -19,6 +19,8 @@ namespace Bayeux\Api;
 /**
  * Holder of a channel ID broken into path segments
  */
+use Bayeux\Common\IllegalStateException;
+
 class ChannelId
 {
     const WILD = "*";
@@ -31,7 +33,7 @@ class ChannelId
     private $_parent;
 
     public function __construct($id)
- {
+    {
         if (! is_string($id)) {
             // FIXME: correção
             throw new \Exception('Alterar para a exception correta de argumetno');
@@ -96,6 +98,10 @@ class ChannelId
         $this->_segments = $segments;
     }
 
+    public function getId() {
+        return $this->_id;
+    }
+
     public function isWild()
     {
         $this->resolve();
@@ -149,7 +155,7 @@ class ChannelId
             return false;
         }
 
-        return $this->_id = $obj->_id;
+        return $this->getId() == $obj->getId();
     }
 
     public function hashCode()
@@ -187,11 +193,11 @@ class ChannelId
             }
             case 1:
             {
-                if (count($channelId->_segments) != count($this->_segments)) {
+                if ($channelId->depth() != $this->depth()) {
                     return false;
                 }
-                for ($i = count($this->_segments) - 1; $i-- > 0; ) {
-                    if (! ($this->_segments[$i] == $channelId->getSegment($i))) {
+                for ($i = $this->depth() - 1; $i-- > 0; ) {
+                    if (! ($this->getSegment($i) == $channelId->getSegment($i))) {
                         return false;
                     }
                 }
@@ -203,7 +209,7 @@ class ChannelId
                     return false;
                 }
                 for ($i = $this->depth() - 1; $i-- > 0; ) {
-                    if (! ($this->_segments[$i] == $channelId->getSegment($i))) {
+                    if (! ($this->getSegment($i) == $channelId->getSegment($i))) {
                         return false;
                     }
                 }
@@ -211,7 +217,7 @@ class ChannelId
             }
             default:
             {
-                throw new \Exception();
+                throw new IllegalStateException();
             }
         }
     }

@@ -42,7 +42,7 @@ interface Extension
      * @param message the outgoing message
      * @return true if message processing should continue, false if it should stop
      */
-    public function send(ServerSession $from, ServerSession $to, ServerMessage\Mutable $message);
+    public function send(ServerSession $from, ServerSession $to = null, ServerMessage\Mutable $message);
 
     /**
      * Callback method invoked every time a meta message is outgoing.

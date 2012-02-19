@@ -61,7 +61,7 @@ abstract class AbstractClientSession implements ClientSession
         else
         {
             foreach ($this->_extensions as $extension) {
-                if (!$extension->send($this, $message)) {
+                if (! $extension->send($this, $message)) {
                     return false;
                 }
             }
@@ -108,7 +108,7 @@ abstract class AbstractClientSession implements ClientSession
         if ($channel === null)
         {
             $id = $this->newChannelId($channelId);
-            $new_channel=$this->newChannel($id);
+            $new_channel = $this->newChannel($id);
             if (empty($this->_channels[$channelId])) {
                 $this->_channels[$channelId] = $new_channel;
             }
@@ -161,7 +161,7 @@ abstract class AbstractClientSession implements ClientSession
     }
 
     /* ------------------------------------------------------------ */
-    public function batch($batch)
+    public function batch($batch = true)
     {
         $this->startBatch();
         try

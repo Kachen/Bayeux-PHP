@@ -28,7 +28,6 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
 
     private $_session;
 
-    /* ------------------------------------------------------------ */
     public function __construct(BayeuxServerImpl $bayeux, $idHint)
     {
         $this->_queue = new \SplQueue();
@@ -43,11 +42,9 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
             $this->_session = null;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * @see org.cometd.common.AbstractClientSession#newChannel(org.cometd.bayeux.ChannelId)
      */
-//     @Override
     public function newChannel(ChannelId $channelId = null)
     {
         $localChannel = new LocalChannel($channelId);
@@ -55,31 +52,26 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         return $localChannel;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * @see org.cometd.common.AbstractClientSession#newChannelId(java.lang.String)
      */
-//     @Override
     public function newChannelId($channelId)
     {
         return $this->_bayeux->newChannelId($channelId);
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * @see org.cometd.common.AbstractClientSession#sendBatch()
      */
-//     @Override
     protected function sendBatch()
     {
-        while($this->_queue->valid())
+        while(! $this->_queue->isEmpty())
         {
             $message = $this->_queue->dequeue();
             $this->doSend($this->_session, $message);
         }
     }
 
-    /* ------------------------------------------------------------ */
     public function getServerSession()
     {
         if ($this->_session == null) {
@@ -88,7 +80,6 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         return $this->_session;
     }
 
-    /* ------------------------------------------------------------ */
     public function handshake($template = null)
     {
         if ($this->_session != null) {
@@ -132,7 +123,6 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         $message->setAssociated(null);
     }
 
-    /* ------------------------------------------------------------ */
     public function disconnect()
     {
         if ($this->_session!=null)
@@ -147,7 +137,6 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         }
     }
 
-    /* ------------------------------------------------------------ */
     public function getId()
     {
         if ($this->_session == null) {
@@ -211,8 +200,7 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         $reply = $this->_bayeux->handle($from, $message);
         if ($reply != null)
         {
-            $reply = $this->_bayeux->extendReply($from, $this->isHandshook() ? $this->_session:null, $reply);
-
+            $reply = $this->_bayeux->extendReply($from, ($this->_session != null && $this->_session->isHandshook()) ? $this->_session : null, $reply);
             if ($reply != null) {
                 $this->receive($reply);
             }
