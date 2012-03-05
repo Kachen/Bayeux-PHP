@@ -28,7 +28,7 @@ use Bayeux\Api\Server\BayeuxServer;
 use Bayeux\Api\Server\ServerChannel\ServerChannelListener;
 use Bayeux\Api\Channel;
 
-/* ------------------------------------------------------------ */
+
 /**
  *
  * Options to configure the server are: <dl>
@@ -64,7 +64,7 @@ class BayeuxServerImpl implements BayeuxServer
     private $_timer;
 
 
-    /* ------------------------------------------------------------ */
+
     public function __construct(array $transports = array())
     {
         $this->addTransport(new JSONTransport($this));
@@ -78,7 +78,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->{$name};
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getLogger()
     {
         return $this->_logger;
@@ -100,7 +100,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->_logLevel;
     }
 
-    /* ------------------------------------------------------------ */
+
     /**
      */
     //@Override
@@ -171,7 +171,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     /**
      * @see org.eclipse.jetty.util.component.AbstractLifeCycle#doStop()
      */
@@ -242,7 +242,7 @@ class BayeuxServerImpl implements BayeuxServer
         $this->_options[self::JSON_CONTEXT] = $this->_jsonContext;
     }
 
-    /* ------------------------------------------------------------ */
+
     /** Initialize the default transports.
      * <p>This method creates  a {@link JSONTransport} and a {@link JSONPTransport}.
      * If no allowed transport have been set then adds all known transports as allowed transports.
@@ -258,19 +258,19 @@ class BayeuxServerImpl implements BayeuxServer
         //$this->_logger->info("Allowed Transports: " . $this->_allowedTransports);
     }
 
-    /* ------------------------------------------------------------ */
+
     public function startTimeout(Timeout\Task $task, $interval)
     {
         $this->_timeout->schedule($task, $interval);
     }
 
-    /* ------------------------------------------------------------ */
+
     public function cancelTimeout(Timeout\Task $task)
     {
         $task->cancel();
     }
 
-    /* ------------------------------------------------------------ */
+
     public function newChannelId($id)
     {
         if (isset($this->_channels[$id])) {
@@ -280,15 +280,15 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getOptions()
     {
         return $this->_options;
     }
 
-    /* ------------------------------------------------------------ */
 
-    /* ------------------------------------------------------------ */
+
+
     /** Get an option value as a long
      * @param name
      * @param dft The default value
@@ -303,7 +303,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->_options[$name];
     }
 
-    /* ------------------------------------------------------------ */
+
     /**
      * @see org.cometd.bayeux.Bayeux#getOptionNames()
      */
@@ -312,7 +312,7 @@ class BayeuxServerImpl implements BayeuxServer
         return array_keys($this->_options);
     }
 
-    /* ------------------------------------------------------------ */
+
     /**
      * @see org.cometd.bayeux.Bayeux#setOption(java.lang.String, java.lang.Object)
      */
@@ -326,32 +326,32 @@ class BayeuxServerImpl implements BayeuxServer
         $this->_options = $options;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function randomLong()
     {
         return uniqid();
     }
 
-    /* ------------------------------------------------------------ */
+
     public function setCurrentTransport(AbstractServerTransport $transport)
     {
         $this->_currentTransport = $transport;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getCurrentTransport()
     {
         return $this->_currentTransport;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getContext()
     {
         $transport = $this->_currentTransport;
         return $transport == null ? null : $transport->getContext();
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getSecurityPolicy()
     {
         return $this->_policy;
@@ -472,13 +472,13 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getSessions()
     {
         return $this->_sessions;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getSession($clientId)
     {
         if ($clientId == null) {
@@ -490,7 +490,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->_sessions[$clientId];
     }
 
-    /* ------------------------------------------------------------ */
+
     public function addServerSession(ServerSessionImpl $session)
     {
         $this->_sessions[$session->getId()] = $session;
@@ -502,7 +502,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     /**
      * @param session
      * @param timedout
@@ -559,13 +559,13 @@ class BayeuxServerImpl implements BayeuxServer
         return new ServerSessionImpl($this, $local, $idHint);
     }
 
-    /* ------------------------------------------------------------ */
+
     public function newLocalSession($idHint)
     {
         return new LocalSessionImpl($this, $idHint);
     }
 
-    /* ------------------------------------------------------------ */
+
     /**
      * (non-PHPdoc)
      * @see Bayeux\Api\Server.BayeuxServer::newMessage()
@@ -584,19 +584,19 @@ class BayeuxServerImpl implements BayeuxServer
         return $mutable;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function setSecurityPolicy(SecurityPolicy $securityPolicy)
     {
         $this->_policy=$securityPolicy;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function addExtension(Extension $extension)
     {
         $this->_extensions[] = $extension;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function removeExtension(Extension $extension)
     {
         $key = array_search(extension, $this->_extensions);
@@ -605,13 +605,13 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     public function addListener(BayeuxServerListener $listener)
     {
         $this->_listeners[] = $listener;
     }
 
-    /* ------------------------------------------------------------ */
+
     /**
      * (non-PHPdoc)
      * @see Bayeux\Api\Server.BayeuxServer::getChannel()
@@ -625,13 +625,13 @@ class BayeuxServerImpl implements BayeuxServer
         return null;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getChannels()
     {
         return $this->_channels;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getChannelChildren(ChannelId $id)
     {
         $children = array();
@@ -644,7 +644,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $children;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function removeListener(BayeuxServerListener $listener)
     {
         $key = array_search($listener, $this->_listeners);
@@ -653,7 +653,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     /** Extend and handle in incoming message.
      * @param session The session if known
      * @param message The message.
@@ -844,7 +844,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $result;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function doPublish(ServerSessionImpl $from, ServerChannelImpl $to, ServerMessage\Mutable $mutable)
     {
         // check the parent channels
@@ -984,7 +984,7 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    /* ------------------------------------------------------------ */
+
     public function extendReply(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $reply)
     {
         if (!$this->extendSend($from, $to, $reply)) {
@@ -1020,7 +1020,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $reply;
     }
 
-    /* ------------------------------------------------------------ */
+
     protected function extendRecv(ServerSessionImpl $from, ServerMessage\Mutable $message)
     {
         if ($message->isMeta())
@@ -1042,7 +1042,7 @@ class BayeuxServerImpl implements BayeuxServer
         return true;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function extendSend(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $message)
     {
         if ($message->isMeta())
@@ -1083,7 +1083,7 @@ class BayeuxServerImpl implements BayeuxServer
         return true;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function removeServerChannel(ServerChannelImpl $channel)
     {
         if (empty($this->_channels[$channel->getId()])) {
@@ -1110,33 +1110,33 @@ class BayeuxServerImpl implements BayeuxServer
         return false;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getListeners()
     {
         return $this->_listeners;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getKnownTransportNames()
     {
         return array_keys($this->_transports);
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getTransport($transport)
     {
         return $this->_transports[$transport];
     }
 
-    /* ------------------------------------------------------------ */
 
-    /* ------------------------------------------------------------ */
+
+
     public function addTransport(ServerTransport $transport)
     {
         $this->_transports[$transport->getName()] = $transport;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function setTransports(array $transports)
     {
         $this->_transports = array();
@@ -1145,13 +1145,13 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     public function getAllowedTransports()
     {
         return $this->_allowedTransports;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function setAllowedTransports(array $allowed)
     {
         $this->_allowedTransports = array();
@@ -1163,7 +1163,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     protected function unknownSession(Servermessage\Mutable $reply)
     {
         $this->error($reply,"402::Unknown client");
@@ -1172,14 +1172,14 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     protected function error(ServerMessage\Mutable $reply, $error)
     {
         $reply[Message::ERROR_FIELD] = $error;
         $reply->setSuccessful(false);
     }
 
-    /* ------------------------------------------------------------ */
+
     public function createReply(ServerMessage\Mutable $message)
     {
         $reply = $this->newMessage();
@@ -1194,7 +1194,7 @@ class BayeuxServerImpl implements BayeuxServer
         return $reply;
     }
 
-    /* ------------------------------------------------------------ */
+
     public function sweep()
     {
         foreach ($this->_channels as $channel) {
@@ -1214,7 +1214,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    /* ------------------------------------------------------------ */
+
     public function dump()
     {
         $b = '';

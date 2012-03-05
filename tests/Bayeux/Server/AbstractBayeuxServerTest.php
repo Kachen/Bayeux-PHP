@@ -3,6 +3,8 @@
 namespace Bayeux\Server;
 
 
+use PHPJetty\Server\Server;
+
 abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
     protected $server;
     protected $port;
@@ -10,9 +12,14 @@ abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
     protected $cometdURL;
     protected $timeout = 5000;
 
-    protected function setUp() //throws Exception
+    protected function setUp() {
+        $this->server = new \HttpRequestPool();
+
+    }
+
+    protected function asdfsetUp() //throws Exception
     {
-        $this->server = new Server();
+        $this->server = new \HttpRequestPool();
         $connector = new SelectChannelConnector();
         $this->server->addConnector($connector);
 
@@ -27,8 +34,6 @@ abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
         $cometdServletHolder = new ServletHolder($cometdServlet);
         $options = array();
         $options["timeout"] = $timeout;
-        $options["logLevel"] = "3";
-        $options["jsonDebug"] = "true";
         $this->customizeOptions($options);
         foreach ($options as $key => $value) {
             $cometdServletHolder->setInitParameter($key, $value);
@@ -53,10 +58,6 @@ abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
     }
 
     protected function customizeOptions(array $options)
-    {
-    }
-
-    protected function customizeBayeux(BayeuxServerImpl $bayeux)
     {
     }
 }

@@ -12,7 +12,7 @@ abstract class AbstractBayeuxClientServerTest extends AbstractBayeuxServerTest
     protected function setUp() // throws Exception
     {
         parent::setUp();
-        $this->httpClient = new HttpClient();
+        $this->httpClient = new HttpRequestPool();
         $this->httpClient->start();
     }
 
@@ -44,13 +44,18 @@ abstract class AbstractBayeuxClientServerTest extends AbstractBayeuxServerTest
         return $cookieName . "=" . bayeuxCookie;
     }
 
-    protected function newBayeuxExchange(String $requestBody)
+    protected function newBayeuxExchange($requestBody)
     {
-        $result = new ContentExchange(true);
-        $result->setURL($cometdURL);
-        $result->setMethod(HttpMethods.POST);
-        $result->setRequestContentType("application/json;charset=UTF-8");
-        $result->setRequestContent(new ByteArrayBuffer(requestBody, "UTF-8"));
+        $result = new \HttpRequest();
+        $this->configureBayeuxExchange($result, $requestBody, "UTF-8");
         return $result;
+    }
+
+    protected function configureBayeuxExchange(\HttpRequest $exchange, $requestBody, $encoding)
+    {
+        $exchange->setUrl($this->cometdURL);
+        $exchange->setMethod(HTTP_METH_POST);
+        $exchange->setContentType("application/json;charset=" . $encoding);
+        $exchange->setBody($requestBody);
     }
 }

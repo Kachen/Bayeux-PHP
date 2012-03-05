@@ -18,6 +18,7 @@ JSON;
                     "\"minimumVersion\": \"1.0\"," .
                     "\"supportedConnectionTypes\": [\"long-polling\"]" .
                     "}]");
+
         $httpClient->send($handshake);
         $this->assertEquals(HttpExchange.STATUS_COMPLETED, $handshake->waitForDone());
         $this->assertEquals(200, $handshake->getResponseStatus());
