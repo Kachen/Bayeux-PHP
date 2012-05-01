@@ -4,7 +4,7 @@ namespace Bayeux\Server;
 
 use Bayeux\Api\Server\ServerSession;
 
-abstract class DisconnectTest extends AbstractBayeuxClientServerTest {
+class DisconnectTest extends AbstractBayeuxClientServerTest {
 
     public function testDisconnect()
     {

@@ -3,6 +3,9 @@
 namespace Bayeux\Server;
 
 
+use PHPJetty\Servlet\ServletContextHandler;
+use PHPJetty\Server\Handler\HandlerCollection;
+use PHPJetty\Server\NIO\SelectChannelConnector;
 use PHPJetty\Server\Server;
 
 abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
@@ -14,12 +17,11 @@ abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
 
     protected function setUp() {
         $this->server = new \HttpRequestPool();
-
     }
 
     protected function asdfsetUp() //throws Exception
     {
-        $this->server = new \HttpRequestPool();
+        $this->server = new Server();
         $connector = new SelectChannelConnector();
         $this->server->addConnector($connector);
 
@@ -27,7 +29,7 @@ abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
         $this->server->setHandler($handlers);
 
         $contextPath = "/cometd";
-        $this->context = new ServletContextHandler($handlers, $contextPath, ServletContextHandler.SESSIONS);
+        $this->context = new ServletContextHandler($handlers, $contextPath, null, null, null, null, ServletContextHandler::SESSIONS);
 
         // Setup comet servlet
         $cometdServlet = new CometdServlet();
