@@ -39,10 +39,8 @@ abstract class PHPJSONContext
 
     protected abstract function newRoot(array $result);
 
-    public function parse($json)
-    {
-
-        $object = \json_decode($json);
+    public function parse($json) {
+        $object = \json_decode($json, true);
         if ($object) {
             return $this->adapt($object);
         }
@@ -69,20 +67,16 @@ abstract class PHPJSONContext
         return array($this->newRoot((array) $objects));
     }
 
-    public function generate($message)
-    {
+    public function generate($message) {
         return \json_encode((array) $message);
     }
-
 }
 
-class FieldJSON
-{
+class FieldJSON {
     // Allows for optimizations
 }
 
-class MessageJSON extends FieldJSON
-{
+class MessageJSON extends FieldJSON {
     protected function newMap()
     {
         return newRoot();
@@ -94,25 +88,21 @@ class MessageJSON extends FieldJSON
     }
 }
 
-class MessagesJSON extends FieldJSON
-{
-    protected function newMap()
-    {
+class MessagesJSON extends FieldJSON {
+
+    protected function newMap() {
         return newRoot();
     }
 
-    protected function newArray($size)
-    {
+    protected function newArray($size) {
         return newRootArray(size);
     }
 
-    protected function contextFor($field)
-    {
+    protected function contextFor($field) {
         return getJSON();
     }
 
-    protected function contextForArray()
-    {
+    protected function contextForArray() {
         return $this->_messageParser;
     }
 }

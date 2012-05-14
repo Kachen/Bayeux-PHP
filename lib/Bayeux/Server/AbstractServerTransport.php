@@ -5,7 +5,6 @@ namespace Bayeux\Server;
 use Bayeux\Common\AbstractTransport;
 use Bayeux\Api\Server\ServerTransport;
 
-/* ------------------------------------------------------------ */
 /** The base class of all server transports.
  * <p>
  * Each derived Transport class should declare all options that it supports
@@ -30,10 +29,13 @@ abstract class AbstractServerTransport extends AbstractTransport implements Serv
     private $_timeout = 30000;
     private $_maxLazyTimeout = 5000;
     private $_metaConnectDeliveryOnly = false;
+
+    /**
+     * @var \Bayeux\Server\PHPJSONContextServer
+     */
     private $jsonContext;
     private $_advice;
 
-    /* ------------------------------------------------------------ */
     /** Construct a ServerTransport.
      * </p>
      * <p>The construct is passed the {@link BayeuxServerImpl} instance for
@@ -47,72 +49,57 @@ abstract class AbstractServerTransport extends AbstractTransport implements Serv
      * </p>
      * <p>
      */
-    protected function __construct(BayeuxServerImpl $bayeux, $name)
-    {
+    protected function __construct(BayeuxServerImpl $bayeux, $name) {
         parent::__construct($name, $bayeux->getOptions());
         $this->_bayeux = $bayeux;
     }
 
-
-    /* ------------------------------------------------------------ */
     public function getAdvice()
     {
         return $this->_advice;
     }
 
-    /* ------------------------------------------------------------ */
     /** Get the interval.
      * @return the interval
      */
-    public function getInterval()
-    {
+    public function getInterval() {
         return $this->_interval;
     }
 
-    /* ------------------------------------------------------------ */
     /** Get the maxInterval.
      * @return the maxInterval
      */
-    public function getMaxInterval()
-    {
+    public function getMaxInterval() {
         return $this->_maxInterval;
     }
 
-
-    /* ------------------------------------------------------------ */
     /** Get the max time before dispatching lazy message.
      * @return the max lazy timeout in MS
      */
-    public function getMaxLazyTimeout()
-    {
+    public function getMaxLazyTimeout() {
         return $this->_maxLazyTimeout;
     }
 
-    /* ------------------------------------------------------------ */
-    /** Get the timeout.
+    /**
+     * Get the timeout.
      * @return the timeout
      */
-    public function getTimeout()
-    {
+    public function getTimeout() {
         return $this->_timeout;
     }
 
-    /* ------------------------------------------------------------ */
     public function isMetaConnectDeliveryOnly()
     {
         return $this->_metaConnectDeliveryOnly;
     }
 
-    /* ------------------------------------------------------------ */
-    public function setMetaConnectDeliveryOnly($meta)
-    {
+    public function setMetaConnectDeliveryOnly($meta) {
         if (! is_bool($meta)) {
             throw new \InvalidArgumentException();
         }
         $this->_metaConnectDeliveryOnly = $meta;
     }
 
-    /* ------------------------------------------------------------ */
     /** Initialise the transport.
      * Initialise the transport, resolving default and direct options.
      * After the call to init, the {@link #getMutableOptions()} set should
@@ -120,28 +107,28 @@ abstract class AbstractServerTransport extends AbstractTransport implements Serv
      * transport.
      * This implementation clears the mutable options set.
      */
-    public function init()
-    {
+    public function init() {
         $this->_interval = $this->getOption(self::INTERVAL_OPTION, $this->_interval);
         $this->_maxInterval = $this->getOption(self::MAX_INTERVAL_OPTION, $this->_maxInterval);
         $this->_timeout = $this->getOption(self::TIMEOUT_OPTION, $this->_timeout);
         $this->_maxLazyTimeout = $this->getOption(self::MAX_LAZY_OPTION, $this->_maxLazyTimeout);
         $this->_metaConnectDeliveryOnly = $this->getOption(self::META_CONNECT_DELIVERY_OPTION, $this->_metaConnectDeliveryOnly);
+
         $this->jsonContext = $this->getOption(BayeuxServerImpl::JSON_CONTEXT);
     }
 
+    protected function parseMessages($json) {
+        return $this->jsonContext->parse($json);
+    }
 
-
-    /* ------------------------------------------------------------ */
-    /** Get the bayeux.
+    /**
+     * Get the bayeux.
      * @return the bayeux
      */
-    public function getBayeux()
-    {
+    public function getBayeux() {
         return $this->_bayeux;
     }
 
-    /* ------------------------------------------------------------ */
     /** Set the interval.
      * @param interval the interval to set
      */
@@ -150,7 +137,6 @@ abstract class AbstractServerTransport extends AbstractTransport implements Serv
         $this->_interval = $interval;
     }
 
-    /* ------------------------------------------------------------ */
     /** Set the maxInterval.
      * @param maxInterval the maxInterval to set
      */
@@ -159,7 +145,6 @@ abstract class AbstractServerTransport extends AbstractTransport implements Serv
         $this->_maxInterval = $maxInterval;
     }
 
-    /* ------------------------------------------------------------ */
     /** Set the timeout.
      * @param timeout the timeout to set
      */
@@ -168,34 +153,27 @@ abstract class AbstractServerTransport extends AbstractTransport implements Serv
         $this->_timeout = $timeout;
     }
 
-    /* ------------------------------------------------------------ */
     /** Set the maxLazyTimeout.
      * @param maxLazyTimeout the maxLazyTimeout to set
      */
-    public function setMaxLazyTimeout($maxLazyTimeout)
-    {
+    public function setMaxLazyTimeout($maxLazyTimeout) {
         $this->_maxLazyTimeout = $maxLazyTimeout;
     }
 
-    /* ------------------------------------------------------------ */
     /** Set the advice.
      * @param advice the advice to set
      */
-    public function setAdvice($advice)
-    {
+    public function setAdvice($advice) {
         $this->_advice = $advice;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * Housekeeping sweep, called a regular intervals
      */
-    public function sweep()
-    {
+    public function sweep() {
     }
 
-    protected function debug($format)
-    {
+    protected function debug($format) {
         throw new \Exception("não implementado");
         if ($this->_bayeux->getLogLevel() >= BayeuxServerImpl.DEBUG_LOG_LEVEL) {
             $this->_logger.info(format, args);
@@ -204,4 +182,3 @@ abstract class AbstractServerTransport extends AbstractTransport implements Serv
         }
     }
 }
-

@@ -2,62 +2,50 @@
 
 namespace Bayeux\Server\Transport\HttpTransport;
 
-use Bayeux\Api\Server\BayeuxContext;
+use Bayeux\Http\Request,
+    Bayeux\Api\Server\BayeuxContext;
 
-/* ------------------------------------------------------------ */
-/* ------------------------------------------------------------ */
-class HttpContext implements BayeuxContext
-{
+class HttpContext implements BayeuxContext {
     public $_request;
 
-    public function __construct(HttpServletRequest $request)
-    {
+    public function __construct(Request $request) {
         $this->_request = $request;
     }
 
-    public function getUserPrincipal()
-    {
+    public function getUserPrincipal() {
         return $this->_request->getUserPrincipal();
     }
 
-    public function isUserInRole($role)
-    {
+    public function isUserInRole($role) {
         return $this->_request->isUserInRole($role);
     }
 
-    public function getRemoteAddress()
-    {
-        return new InetSocketAddress(_request.getRemoteHost(),_request.getRemotePort());
+    public function getRemoteAddress() {
+        return new InetSocketAddress($this->_request->getRemoteHost(), $this->_request->getRemotePort());
     }
 
-    public function getLocalAddress()
-    {
+    public function getLocalAddress() {
         return new InetSocketAddress(_request.getLocalName(),_request.getLocalPort());
     }
 
 
-    public function getHeader($name)
-    {
+    public function getHeader($name) {
         return $this->_request->getHeader($name);
     }
 
-    public function getHeaderValues($name)
-    {
+    public function getHeaderValues($name) {
         return $this->_request->getHeaders($name);
     }
 
-    public function getParameter($name)
-    {
+    public function getParameter($name) {
         return $this->_request->getParameter($name);
     }
 
-    public function getParameterValues($name)
-    {
+    public function getParameterValues($name) {
         return $this->_request->getParameterValues($name);
     }
 
-    public function getCookie($name)
-    {
+    public function getCookie($name) {
         $cookies = $this->_request.getCookies();
         foreach ($cookies as $c)
         {
@@ -68,16 +56,14 @@ class HttpContext implements BayeuxContext
         return null;
     }
 
-    public function getHttpSessionId()
-    {
+    public function getHttpSessionId() {
         $session = $this->_request->getSession(false);
         if ($session!=null)
             return $session->getId();
         return null;
     }
 
-    public function getHttpSessionAttribute($name)
-    {
+    public function getHttpSessionAttribute($name) {
         $session = $this->_request->getSession(false);
         if ($session!=null) {
             return $session->getAttribute($name);
@@ -85,8 +71,7 @@ class HttpContext implements BayeuxContext
         return null;
     }
 
-    public function setHttpSessionAttribute($name, $value)
-    {
+    public function setHttpSessionAttribute($name, $value) {
         $session = $this->_request->getSession(false);
         if ($session!=null) {
             $session->setAttribute($name, $value);
@@ -95,21 +80,18 @@ class HttpContext implements BayeuxContext
         }
     }
 
-    public function invalidateHttpSession()
-    {
+    public function invalidateHttpSession() {
         $session = $this->_request->getSession(false);
-        if ($session!=null) {
+        if ($session != null) {
             $session->invalidate();
         }
     }
 
-    public function getRequestAttribute($name)
-    {
+    public function getRequestAttribute($name) {
         return $this->_request->getAttribute($name);
     }
 
-    private function getServletContext()
-    {
+    private function getServletContext() {
         $c = null;
         $s = $this->_request->getSession(false);
         if ($s!=null) {
@@ -122,18 +104,15 @@ class HttpContext implements BayeuxContext
         return $c;
     }
 
-    public function getContextAttribute($name)
-    {
+    public function getContextAttribute($name) {
         return $this->getServletContext()->getAttribute($name);
     }
 
-    public function getContextInitParameter($name)
-    {
+    public function getContextInitParameter($name) {
         return $this->getServletContext()->getInitParameter($name);
     }
 
-    public function getURL()
-    {
+    public function getURL() {
         $url = $this->_request->getRequestURL();
         $query = $this->_request->getQueryString();
         if ($query != null) {

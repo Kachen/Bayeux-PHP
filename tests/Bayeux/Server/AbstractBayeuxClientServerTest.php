@@ -2,25 +2,15 @@
 
 namespace Bayeux\Server;
 
+
+use Zend\Http\Headers;
+use Bayeux\Http\Request;
+
 /**
  * @version $Revision$ $Date$
  */
 abstract class AbstractBayeuxClientServerTest extends AbstractBayeuxServerTest
 {
-    protected $httpClient;
-
-    protected function setUp() // throws Exception
-    {
-        parent::setUp();
-        $this->httpClient = new HttpRequestPool();
-        $this->httpClient->start();
-    }
-
-    protected function tearDown() //throws Exception
-    {
-        $this->httpClient->stop();
-        parent::tearDown();
-    }
 
     protected function extractClientId(ContentExchange $handshake)
     {
@@ -34,6 +24,8 @@ abstract class AbstractBayeuxClientServerTest extends AbstractBayeuxServerTest
 
     protected function extractBayeuxCookie(ContentExchange $handshake)
     {
+        var_dump($_COOKIE);
+        exit;
         $headers = handshake.getResponseFields();
         $cookie = headers.get(HttpHeaders.SET_COOKIE_BUFFER);
         $cookieName = "BAYEUX_BROWSER";
@@ -46,16 +38,18 @@ abstract class AbstractBayeuxClientServerTest extends AbstractBayeuxServerTest
 
     protected function newBayeuxExchange($requestBody)
     {
-        $result = new \HttpRequest();
-        $this->configureBayeuxExchange($result, $requestBody, "UTF-8");
-        return $result;
+        $request = new Request();
+        $this->configureBayeuxExchange($request, $requestBody, 'utf-8');
+        return $request;
     }
 
-    protected function configureBayeuxExchange(\HttpRequest $exchange, $requestBody, $encoding)
+    protected function configureBayeuxExchange(Request $request, $requestBody, $encoding)
     {
-        $exchange->setUrl($this->cometdURL);
-        $exchange->setMethod(HTTP_METH_POST);
-        $exchange->setContentType("application/json;charset=" . $encoding);
-        $exchange->setBody($requestBody);
+        $request->setRequestUri($this->uri);
+        $request->setMethod(Request::METHOD_POST);
+        $header = new \Bayeux\Http\Headers();
+        $header->addHeaderLine("Content-Type: application/json;charset={$encoding}");
+        $request->setHeaders($header);
+        $request->setContent($requestBody);
     }
 }

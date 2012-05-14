@@ -1,10 +1,4 @@
 <?php
-
-namespace Bayeux\Api\Server;
-
-use Bayeux\Api\Server\Authorizer\Operation;
-use Bayeux\Api\ChannelId;
-
 // ========================================================================
 // Copyright 2007 Dojo Foundation
 // ------------------------------------------------------------------------
@@ -18,6 +12,11 @@ use Bayeux\Api\ChannelId;
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ========================================================================
+
+namespace Bayeux\Api\Server;
+
+use Bayeux\Api\Server\Authorizer\Operation;
+use Bayeux\Api\ChannelId;
 
 /**
  * <p>{@link Authorizer}s authorize {@link Operation operations} on {@link ServerChannel channels}.</p>

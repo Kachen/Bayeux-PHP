@@ -18,18 +18,3 @@ spl_autoload_register(function($class) {
     require $file;
 });
 
-
-define('COMMANDO_WEBSERVER', 'php -S localhost:3000 -t' . realpath(__DIR__ . '/../lib/Bayeux'));
-
-
-$output = shell_exec('ps aux | grep "' . COMMANDO_WEBSERVER . '"');
-
-if (preg_match_all('!' . COMMANDO_WEBSERVER . '!', $output) < 3) {
-    system(COMMANDO_WEBSERVER . ' 2>1 > /dev/null &');
-}
-
-$output = shell_exec('ps aux | grep "' . COMMANDO_WEBSERVER . '"');
-if (preg_match_all('!' . COMMANDO_WEBSERVER . '!', $output) < 3) {
-    echo 'Falha ao subir o servidor web';
-    exit;
-}

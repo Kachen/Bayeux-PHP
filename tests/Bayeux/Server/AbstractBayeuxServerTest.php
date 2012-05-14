@@ -2,64 +2,27 @@
 
 namespace Bayeux\Server;
 
-
-use PHPJetty\Servlet\ServletContextHandler;
-use PHPJetty\Server\Handler\HandlerCollection;
-use PHPJetty\Server\NIO\SelectChannelConnector;
-use PHPJetty\Server\Server;
+use Bayeux\Http\Request;
 
 abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
-    protected $server;
-    protected $port;
-    protected $context;
-    protected $cometdURL;
+
     protected $timeout = 5000;
+    protected $cometd;
+    protected $uri = 'http://localhost/cometd/cometd.php';
 
-    protected function setUp() {
-        $this->server = new \HttpRequestPool();
-    }
-
-    protected function asdfsetUp() //throws Exception
+    protected function setUp()
     {
-        $this->server = new Server();
-        $connector = new SelectChannelConnector();
-        $this->server->addConnector($connector);
-
-        $handlers = new HandlerCollection();
-        $this->server->setHandler($handlers);
-
-        $contextPath = "/cometd";
-        $this->context = new ServletContextHandler($handlers, $contextPath, null, null, null, null, ServletContextHandler::SESSIONS);
-
+        $this->cometd = $cometd = new Cometd();
         // Setup comet servlet
-        $cometdServlet = new CometdServlet();
-        $cometdServletHolder = new ServletHolder($cometdServlet);
-        $options = array();
-        $options["timeout"] = $timeout;
-        $this->customizeOptions($options);
+        $options = array("timeout" => $this->timeout);
         foreach ($options as $key => $value) {
-            $cometdServletHolder->setInitParameter($key, $value);
+            $cometd->setOption($key, $value);
         }
-        $cometdServletPath = "/cometd";
-        $this->context->addServlet($cometdServletHolder, $cometdServletPath . "/*");
 
-        $this->server->start();
-        $this->port = $connector->getLocalPort();
-
-        $contextURL = "http://localhost:" . $port . $contextPath;
-        $this->cometdURL = $contextURL + $cometdServletPath;
-
-        $bayeux = $cometdServlet->getBayeux();
-        $this->customizeBayeux($bayeux);
+        $cometd->start();
     }
 
-    protected function tearDown() //throws Exception
-    {
-        $this->server->stop();
-        $this->server->join();
-    }
-
-    protected function customizeOptions(array $options)
-    {
+    protected function loop(Request $request) {
+        return $this->cometd->service($request);
     }
 }

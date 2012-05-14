@@ -66,12 +66,26 @@ interface Channel
     public function isService();
 
     /**
-     * @return true if the channel is wild.
+     * <p>A broadcasting channel is a channel that is neither a
+     * {@link #isMeta() meta channel} nor a {@link #isService() service channel}.</p>
+     *
+     * @return whether the channel is a broadcasting channel
+     */
+    public function isBroadcast();
+
+    /**
+     * <p>Tells whether a channel contains the wild character '*', for example
+     * {@code /foo/*} or if it is {@link #isDeepWild()}.</p>
+     *
+     * @return true if the channel contains the '*' or '**' characters
      */
     public function isWild();
 
     /**
-     * @return true if the channel is deeply wild.
+     * <p>Tells whether a channel contains the deep wild characters '**', for example
+     * {@code /foo/**}</p>
+     *
+     * @return true if the channel contains the '**' characters
      */
     public function isDeepWild();
 
@@ -79,6 +93,7 @@ interface Channel
      * <p>Sets a named channel attribute value.</p>
      * <p>Channel attributes are convenience data that allows arbitrary
      * application data to be associated with a channel.</p>
+     *
      * @param name the attribute name
      * @param value the attribute value
      */

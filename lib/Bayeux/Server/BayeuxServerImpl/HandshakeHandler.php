@@ -9,7 +9,7 @@ use Bayeux\Server\ServerSessionImpl;
 
 class HandshakeHandler extends HandlerListener
 {
-    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message)
+    public function onMessage(ServerSessionImpl $session = null, ServerMessage\Mutable $message)
     {
         if ($session == null) {
             $session = $this->newServerSession();
@@ -17,7 +17,7 @@ class HandshakeHandler extends HandlerListener
 
         $reply = $this->createReply($message);
 
-        if ($this->_policy != null && !$this->_policy->canHandshake(self::$_bayeux, $session, $message))
+        if ($this->_policy != null && !$this->_policy->canHandshake($this->_bayeux, $session, $message))
         {
             $this->error($reply,"403::Handshake denied");
             // The user's SecurityPolicy may have customized the response's advice
@@ -29,7 +29,7 @@ class HandshakeHandler extends HandlerListener
         }
 
         $session->handshake();
-        $this->addServerSession($session);
+        $this->_bayeux->addServerSession($session);
 
         $reply->setSuccessful(true);
         $reply[Message::CLIENT_ID_FIELD] = $session->getId();

@@ -8,8 +8,7 @@ use Bayeux\Common\UnsupportedOperationException;
 use Bayeux\Common\HashMapMessage;
 use Bayeux\Api\Server\ServerMessage;
 
-class ServerMessageImpl extends HashMapMessage implements ServerMessage\Mutable
-{
+class ServerMessageImpl extends HashMapMessage implements ServerMessage\Mutable {
     private $_associated = null;
     private $_lazy = false;
     private $_json = null;

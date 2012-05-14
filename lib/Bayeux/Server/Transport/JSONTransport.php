@@ -2,6 +2,11 @@
 
 namespace Bayeux\Server\Transport;
 
+use Bayeux\Http\Headers;
+
+use Bayeux\Http\Header;
+use Bayeux\Http\Response;
+use Bayeux\Http\Request;
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Server\BayeuxServerImpl;
 
@@ -11,36 +16,53 @@ class JSONTransport extends LongPollingTransport
     const NAME = "long-polling";
     const MIME_TYPE_OPTION = "mimeType";
 
+    private $_jsonDebug = false;
     private $_mimeType = "application/json;charset=UTF-8";
 
-    public function __construct(BayeuxServerImpl $bayeux)
-    {
+    public function __construct(BayeuxServerImpl $bayeux) {
         parent::__construct($bayeux, self::NAME);
         $this->setOptionPrefix(self::PREFIX);
     }
 
-//    @Override
-    protected function isAlwaysFlushingAfterHandle()
-    {
+    protected function isAlwaysFlushingAfterHandle() {
         return false;
     }
 
-//     @Override
     public function init()
     {
         parent::init();
+        $this->_jsonDebug = $this->getOption(self::JSON_DEBUG_OPTION, $this->_jsonDebug);
         $this->_mimeType = $this->getOption(self::MIME_TYPE_OPTION, $this->_mimeType);
     }
 
-//     @Override
-    public function accept(HttpServletRequest $request)
-    {
-        return "POST" == $request->getMethod();
+    public function accept(Request $request) {
+        return $request->isPost();
     }
 
-//     @Override
-    protected function send(HttpServletRequest $request, HttpServletResponse $response, PrintWriter $writer, ServerMessage $message) //throws IOException
-    {
+    protected function parseMessages($request)  {
+        if (! ($request instanceof $request)) {
+            return parent::parseMessages($request);
+        }
+
+        $header = $request->headers();
+        $charset = $header->get('contentencoding');
+        if (! $charset) {
+            $header->addHeaderLine('Character-Encoding: UTF-8');
+        }
+
+        $contentType = $header->get('contenttype')->getFieldValue();
+        if ($contentType == null || stripos($contentType, "application/json") === 0) {
+            return parent::parseMessages($request->getContent(), $this->_jsonDebug);
+
+        } else if (stripos($contentType, "application/x-www-form-urlencoded")) {
+            return parent::parseMessages($request->getParameterValues(self::MESSAGE_PARAM));
+
+        } else {
+            throw new Header\Exception("Invalid Content-Type: {$contentType}");
+        }
+    }
+
+    protected function send(Request $request, Response $response, $writer, ServerMessage $message) {
         if ($writer == null)
         {
             $response->setContentType($this->_mimeType);
@@ -51,14 +73,11 @@ class JSONTransport extends LongPollingTransport
         {
             $writer.append(',');
         }
-        $writer.append(message.getJSON());
+        $writer .= $message.getJSON();
         return $writer;
     }
 
-//     @Override
-    protected function complete(PrintWriter $writer)// throws IOException
-    {
-        $writer.append("]\n");
-        $writer.close();
+    protected function complete($writer) {
+        return $writer .= "]\n";
     }
 }

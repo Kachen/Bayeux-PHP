@@ -21,8 +21,10 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
         return new ChannelId($this->getChannel());
     }
 
-    public function getClientId()
-    {
+    public function getClientId() {
+        if (empty($this[self::CLIENT_ID_FIELD])) {
+            return null;
+        }
         return $this[self::CLIENT_ID_FIELD];
     }
 

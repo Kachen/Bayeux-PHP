@@ -2,6 +2,8 @@
 
 namespace Bayeux\Server\Transport;
 
+use Bayeux\Http\Response;
+use Bayeux\Http\Request;
 use Bayeux\Server\BayeuxServerImpl;
 use Bayeux\Api\Server\ServerMessage;
 
@@ -21,68 +23,58 @@ class JSONPTransport extends LongPollingTransport
         $this->setOptionPrefix(self::PREFIX);
     }
 
-
-    /* ------------------------------------------------------------ */
     /**
      * @see org.cometd.server.transport.LongPollingTransport#isAlwaysFlushingAfterHandle()
      */
-//     @Override
     protected function isAlwaysFlushingAfterHandle()
     {
         return true;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * @see org.cometd.server.transport.JSONTransport#init()
      */
-//     @Override
     public function init()
     {
         parent::init();
-        $this->_callbackParam=$this->getOption(self::CALLBACK_PARAMETER_OPTION, $this->_callbackParam);
-        $this->_mimeType=$this->getOption(self::MIME_TYPE_OPTION, $this->_mimeType);
+        $this->_callbackParam = $this->getOption(self::CALLBACK_PARAMETER_OPTION, $this->_callbackParam);
+        $this->_mimeType = $this->getOption(self::MIME_TYPE_OPTION, $this->_mimeType);
         // This transport must deliver only via /meta/connect
         $this->setMetaConnectDeliveryOnly(true);
     }
 
-    /* ------------------------------------------------------------ */
-//     @Override
-    public function accept(HttpServletRequest $request)
-    {
-        return "GET" == $request.getMethod() && $request->getParameter($this->getCallbackParameter())!=null;
+    public function accept(Request $request) {
+        return $request->isGet() && $request->getParameter($this->getCallbackParameter()) != null;
     }
 
-    /* ------------------------------------------------------------ */
-    public function getCallbackParameter()
-    {
+    protected function parseMessages($request) {
+        if (! ($request instanceof Request)) {
+            throw new \InvalidArgumentException();
+        }
+        return parent::parseMessages($request->getParameterValues(self::MESSAGE_PARAM));
+    }
+
+    public function getCallbackParameter() {
         return $this->_callbackParam;
     }
 
-    /* ------------------------------------------------------------ */
-//     @Override
-    protected function send(HttpServletRequest $request, HttpServletResponse $response, PrintWriter $writer, ServerMessage $message) //throws IOException
+    protected function send(Request $request, Response $response, $writer, ServerMessage $message) //throws IOException
     {
-        if ($writer==null)
-        {
+        if ($writer==null) {
             $response.setContentType(_mimeType);
 
             $callback=request.getParameter(_callbackParam);
-            $writer = response.getWriter();
+            $writer = $response->getWriter();
             $writer.append(callback);
             $writer.append("([");
         } else {
             $writer.append(',');
         }
-        $writer.append(message.getJSON());
-        return writer;
+        $writer.append($message->getJSON());
+        return $writer;
     }
 
-    /* ------------------------------------------------------------ */
-//     @Override
-    protected function complete(PrintWriter $writer) //throws IOException
-    {
-        $writer.append("])\r\n");
-        $writer.close();
+    protected function complete($writer) {
+        return "{$writer}])\r\n";
     }
 }

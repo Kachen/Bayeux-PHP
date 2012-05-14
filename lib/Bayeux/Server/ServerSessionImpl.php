@@ -54,9 +54,7 @@ class ServerSessionImpl implements ServerSession
     private $_lazyDispatch;
     private $_lazyTask;
 
-    /* ------------------------------------------------------------ */
-    public function __construct(BayeuxServerImpl $bayeux, LocalSessionImpl $localSession = null, $idHint = null)
-    {
+    public function __construct(BayeuxServerImpl $bayeux, LocalSessionImpl $localSession = null, $idHint = null) {
         $this->_queue = new \SplQueue();
         $this->_subscribedTo = new \SplObjectStorage();
 
@@ -64,19 +62,21 @@ class ServerSessionImpl implements ServerSession
         //$this->_logger=$bayeux->getLogger();
         $this->_localSession = $localSession;
 
-        $id = '';
-        $len = 20;
-        if ($idHint!=null)
-        {
-            $len += strlen($idHint)+1;
-            $id .= $idHint;
-            $id .= '_';
-        }
-        $index = strlen($id);
+        $id = session_id();
+        if (empty($id)) {
+            $id = '';
+            $len = 20;
+            if ($idHint!=null)
+            {
+                $len += strlen($idHint)+1;
+                $id .= $idHint;
+                $id .= '_';
+            }
+            $index = strlen($id);
 
-        while (strlen($id) < $len)
-        {
-            $id .= $this->_bayeux->randomLong();
+            while (strlen($id) < $len) {
+                $id .= $this->_bayeux->randomLong();
+            }
         }
 
         $this->_id = $id;
@@ -86,12 +86,11 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    /* ------------------------------------------------------------ */
-    /** Get the userAgent.
+    /**
+     * Get the userAgent.
      * @return the userAgent
      */
-    public function getUserAgent()
-    {
+    public function getUserAgent() {
         return $this->_userAgent;
     }
 
@@ -461,8 +460,7 @@ class ServerSessionImpl implements ServerSession
     /* ------------------------------------------------------------ */
     public function setScheduler(AbstractServerTransport\Scheduler $newScheduler = null)
     {
-        if ($newScheduler == null)
-        {
+        if ($newScheduler == null) {
             $oldScheduler = $this->_scheduler;
             if ($oldScheduler != null) {
                 $this->_scheduler = null;
@@ -470,32 +468,28 @@ class ServerSessionImpl implements ServerSession
             if ($oldScheduler != null) {
                 $oldScheduler->cancel();
             }
-        }
-        else
-        {
-            $oldScheduler;
+
+        } else {
             $schedule = false;
-                $oldScheduler = $this->_scheduler;
-                $this->_scheduler = $newScheduler;
-                if ($this->_queue.size() > 0 && $this->_batch == 0)
-                {
-                    $schedule = true;
-                    if ($newScheduler instanceof OneTimeScheduler) {
-                        $this->_scheduler = null;
-                    }
+            $oldScheduler = $this->_scheduler;
+            $this->_scheduler = $newScheduler;
+            if ($this->_queue.size() > 0 && $this->_batch == 0) {
+                $schedule = true;
+                if ($newScheduler instanceof OneTimeScheduler) {
+                    $this->_scheduler = null;
                 }
-            if ($oldScheduler != null && $oldScheduler != $newScheduler)
+            }
+            if ($oldScheduler != null && $oldScheduler != $newScheduler) {
                 $oldScheduler->cancel();
-            if ($schedule)
+            }
+            if ($schedule) {
                 $newScheduler->schedule();
+            }
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function flush()
-    {
-        if ($this->_lazyDispatch)
-        {
+    public function flush() {
+        if ($this->_lazyDispatch) {
             $this->_lazyDispatch = false;
             if ($this->_lazyTask != null)
                 $this->_bayeux->cancelTimeout($this->_lazyTask);
@@ -503,14 +497,12 @@ class ServerSessionImpl implements ServerSession
 
         $scheduler = $this->_scheduler;
 
-        if ($scheduler != null)
-        {
+        if ($scheduler != null) {
             if ($this->_scheduler instanceof OneTimeScheduler)
                 $this->_scheduler = null;
         }
 
-        if ($scheduler != null)
-        {
+        if ($scheduler != null) {
             $scheduler->schedule();
             // If there is a scheduler, then it's a remote session
             // and we should not perform local delivery, so we return
@@ -518,10 +510,8 @@ class ServerSessionImpl implements ServerSession
         }
 
         // do local delivery
-        if ($this->_localSession != null && count($this->_queue) > 0)
-        {
-            foreach ($this->takeQueue() as $msg)
-            {
+        if ($this->_localSession != null && count($this->_queue) > 0) {
+            foreach ($this->takeQueue() as $msg) {
                 if ($msg instanceof Message\Mutable) {
                     $this->_localSession->receive($msg);
                 } else {
@@ -531,20 +521,16 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function flushLazy()
-    {
-            if ($this->_maxLazy < 0) {
-                $this->flush();
+    public function flushLazy() {
+        if ($this->_maxLazy < 0) {
+            $this->flush();
 
-            } else if (! $this->_lazyDispatch)
-            {
-                $this->_lazyDispatch = true;
-                $this->_bayeux->startTimeout($this->_lazyTask, $this->_connectTimestamp % $this->_maxLazy);
-            }
+        } else if (! $this->_lazyDispatch) {
+            $this->_lazyDispatch = true;
+            $this->_bayeux->startTimeout($this->_lazyTask, $this->_connectTimestamp % $this->_maxLazy);
+        }
     }
 
-    /* ------------------------------------------------------------ */
     public function cancelSchedule()
     {
             $scheduler=$this->_scheduler;
@@ -555,7 +541,6 @@ class ServerSessionImpl implements ServerSession
             }
     }
 
-    /* ------------------------------------------------------------ */
     public function cancelIntervalTimeout()
     {
             $now = microtime();
@@ -563,7 +548,6 @@ class ServerSessionImpl implements ServerSession
             $this->_intervalTimestamp = 0;
     }
 
-    /* ------------------------------------------------------------ */
     public function startIntervalTimeout($defaultInterval)
     {
         $interval = $this->calculateInterval($defaultInterval);

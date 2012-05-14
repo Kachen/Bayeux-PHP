@@ -16,15 +16,21 @@ namespace Bayeux\Api;
 // limitations under the License.
 //========================================================================
 
-/**
- * Holder of a channel ID broken into path segments
- */
 use Bayeux\Common\IllegalStateException;
 
+/**
+ * <p>Reification of a {@link Channel#getId() channel id} with methods to test properties
+ * and compare with other {@link ChannelId}s.</p>
+ * <p>A {@link ChannelId} breaks the channel id into path segments so that, for example,
+ * {@code /foo/bar} breaks into {@code ["foo","bar"]}.</p>
+ * <p>{@link ChannelId} can be wild, when they end with one or two wild characters {@code "*"};
+ * a {@link ChannelId} is shallow wild if it ends with one wild character (for example {@code /foo/bar/*})
+ * and deep wild if it ends with two wild characters (for example {@code /foo/bar/**}).</p>
+ */
 class ChannelId
 {
-    const WILD = "*";
-    const DEEPWILD = "**";
+    const WILD = '*';
+    const DEEPWILD = '**';
 
     private $_id;
     private $_segments = array();
@@ -43,7 +49,7 @@ class ChannelId
             throw new \InvalidArgumentException($id);
         }
 
-        $id = rtrim($id, '/');
+        $id = rtrim(trim($id), '/');
         $this->_id = $id;
     }
 
@@ -55,7 +61,7 @@ class ChannelId
 
         $segments = explode('/', ltrim($this->_id, '/'));
         if (count($segments) < 1) {
-            throw new \Exception("Invalid channel id:" . $this);
+            throw new \InvalidArgumentException("Invalid channel id:" . $this);
         }
 
         $lastSegment = end($segments);
@@ -102,6 +108,10 @@ class ChannelId
         return $this->_id;
     }
 
+    /**
+     * @return whether this {@code ChannelId} is either {@link #isShallowWild() shallow wild}
+     *         or {@link #isDeepWild() deep wild}
+     */
     public function isWild()
     {
         $this->resolve();
@@ -109,18 +119,26 @@ class ChannelId
     }
 
     /**
-    * <p>Shallow wild {@code ChannelId}s end with a single wild character {@code "*"}
-    * and {@link #matches(ChannelId) match} non wild channels with
-    * the same {@link #depth() depth}.</p>
-    * <p>Example: {@code /foo/*} matches {@code /foo/bar}, but not {@code /foo/bar/baz}.</p>
-    *
-    * @return whether this {@code ChannelId} is a shallow wild channel id
-    */
+     * <p>Shallow wild {@code ChannelId}s end with a single wild character {@code "*"}
+     * and {@link #matches(ChannelId) match} non wild channels with
+     * the same {@link #depth() depth}.</p>
+     * <p>Example: {@code /foo/*} matches {@code /foo/bar}, but not {@code /foo/bar/baz}.</p>
+     *
+     * @return whether this {@code ChannelId} is a shallow wild channel id
+     */
     public function isShallowWild()
     {
         return $this->isWild() && ! $this->isDeepWild();
     }
 
+    /**
+     * <p>Deep wild {@code ChannelId}s end with a double wild character "**"
+     * and {@link #matches(ChannelId) match} non wild channels with
+     * the same or greater {@link #depth() depth}.</p>
+     * <p>Example: {@code /foo/**} matches {@code /foo/bar} and {@code /foo/bar/baz}.</p>
+     *
+     * @return whether this {@code ChannelId} is a deep wild channel id
+     */
     public function isDeepWild()
     {
         $this->resolve();

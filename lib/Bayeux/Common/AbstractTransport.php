@@ -15,18 +15,17 @@ class AbstractTransport implements Transport
     private $_prefix = array();
     private $_optionPrefix = '';
 
-    protected function __construct($name, array $options = null)
-    {
+    protected function __construct($name, \ArrayObject $options) {
+
         if (!is_string($name)) {
             throw new \InvalidArgumentException();
         }
 
         $this->_name = $name;
-        $this->_options = $options == null ? array() : $options;
+        $this->_options = $options;
     }
 
-    public function getName()
-    {
+    public function getName(){
         return $this->_name;
     }
 
@@ -57,12 +56,10 @@ class AbstractTransport implements Transport
         $this->_options[$prefix == null ? $name : $prefix . "." . $name] = $value;
     }
 
-    public function getOptionPrefix()
-    {
+    public function getOptionPrefix() {
         return $this->_optionPrefix;
     }
 
-    /* ------------------------------------------------------------ */
     /** Set the option name prefix segment.
      * <p> Normally this is called by the super class constructors to establish
      * a naming hierarchy for options and iteracts with the {@link #setOption(String, Object)}
@@ -104,8 +101,7 @@ class AbstractTransport implements Transport
     public function getOptionNames()
     {
         $names = array();
-        foreach ($this->_options as $name => $valuekeySet)
-        {
+        foreach ($this->_options as $name => $valuekeySet) {
             $names = rtrim($name, '.');
         }
         return $names;

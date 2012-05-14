@@ -20,7 +20,6 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
      */
     private $_bayeux;
 
-
     //@Before
     public function setUp()// throws Exception
     {
@@ -35,7 +34,6 @@ class BayeuxServerTest extends \PHPUnit_Framework_TestCase
         $this->_bayeux->stop();
         $this->_events = new \SplQueue();
     }
-
 
     private function newServerSession()
     {

@@ -6,50 +6,38 @@ use Bayeux\Api\Server\ServerSession;
 
 class DisconnectTest extends AbstractBayeuxClientServerTest {
 
-    public function testDisconnect()
-    {
-$json = <<<JSON
-
-JSON;
-
-        $handshake = $this->newBayeuxExchange("[{" .
+    public function testDisconnect() {
+        $request = $this->newBayeuxExchange("[{" .
                     "\"channel\": \"/meta/handshake\"," .
                     "\"version\": \"1.0\"," .
                     "\"minimumVersion\": \"1.0\"," .
                     "\"supportedConnectionTypes\": [\"long-polling\"]" .
                     "}]");
 
-        $httpClient->send($handshake);
-        $this->assertEquals(HttpExchange.STATUS_COMPLETED, $handshake->waitForDone());
-        $this->assertEquals(200, $handshake->getResponseStatus());
+        $response = $this->loop($request);
 
-        $clientId = $this->extractClientId($handshake);
-        $bayeuxCookie = $this->extractBayeuxCookie($handshake);
+
+        $clientId = $this->extractClientId($response);
+
+        exit;
 
         $connect = $this->newBayeuxExchange("[{" .
                     "\"channel\": \"/meta/connect\"," .
                     "\"clientId\": \"" . $clientId + "\"," .
                     "\"connectionType\": \"long-polling\"" .
                     "}]");
-        $connect->setRequestHeader(HttpHeaders::COOKIE, $bayeuxCookie);
-        $httpClient.send(connect);
-        $this->assertEquals(HttpExchange.STATUS_COMPLETED, connect.waitForDone());
         $this->assertEquals(200, connect.getResponseStatus());
 
-        $serverSession = bayeux.getSession(clientId);
-        $this->assertNotNull(serverSession);
+        $serverSession = $this->bayeux->getSession($clientId);
+        $this->assertNotNull($serverSession);
 
         $latch = new CountDownLatch(1);
         $serverSession->addListener(new ServerSessionRemoveListenerTest());
 
-        $disconnect = $this->newBayeuxExchange("[{" +
+        $this->newBayeuxExchange("[{" +
                     "\"channel\": \"/meta/disconnect\"," +
                     "\"clientId\": \"" + clientId + "\"" +
                     "}]");
-        $httpClient->send($disconnect);
-        $this->assertEquals(HttpExchange.STATUS_COMPLETED, disconnect.waitForDone());
-        $this->assertEquals(200, disconnect.getResponseStatus());
-
         $this->assertTrue($latch->await(5, TimeUnit.SECONDS));
     }
 }

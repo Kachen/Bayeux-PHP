@@ -57,7 +57,6 @@ interface Transport
      */
     public function getOption($name);
 
-
     /**
      * @return the set of configuration options
      * @see #getOption(String)

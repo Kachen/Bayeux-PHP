@@ -55,7 +55,7 @@ class BayeuxServerImpl implements BayeuxServer
     private $_transports = array();
     private $_allowedTransports = array();
     private $_currentTransport = null;
-    private $_options = array();
+    private $_options;
     private $_timeout;
     private $_handshakeAdvice = array();
     private $_policy;
@@ -63,10 +63,8 @@ class BayeuxServerImpl implements BayeuxServer
     private $_jsonContext;
     private $_timer;
 
-
-
-    public function __construct(array $transports = array())
-    {
+    public function __construct(array $transports = array()) {
+        $this->_options = new \ArrayObject();
         $this->addTransport(new JSONTransport($this));
         $this->addTransport(new JSONPTransport($this));
 
@@ -95,8 +93,7 @@ class BayeuxServerImpl implements BayeuxServer
         } */
     }
 
-    public function getLogLevel()
-    {
+    public function getLogLevel() {
         return $this->_logLevel;
     }
 
@@ -104,8 +101,7 @@ class BayeuxServerImpl implements BayeuxServer
     /**
      */
     //@Override
-    public function start() //throws Exception
-    {
+    public function start() {
         $this->_logLevel = self::OFF_LOG_LEVEL;
 
         $logLevelValue = $this->getOption(self::LOG_LEVEL);
@@ -176,17 +172,14 @@ class BayeuxServerImpl implements BayeuxServer
      * @see org.eclipse.jetty.util.component.AbstractLifeCycle#doStop()
      */
     //@Override
-    public function stop() //throws Exception
-    {
-        //parent::doStop();
-
+    public function stop() {
         $this->_listeners = array();
         $this->_extensions = array();
         $this->_sessions = array();
         $this->_channels = array();
         $this->_transports = array();
         $this->_allowedTransports = array();
-        $this->_options = array();
+        $this->_options = new \ArrayObject();
         //$this->_timer
     }
 
@@ -198,13 +191,11 @@ class BayeuxServerImpl implements BayeuxServer
         $this->createIfAbsent(Channel::META_UNSUBSCRIBE);
         $this->createIfAbsent(Channel::META_DISCONNECT);
 
-
-        HandlerListener::setBayeuxServerImpl($this);
-        $this->getChannel(Channel::META_HANDSHAKE)->addListener(new HandshakeHandler());
-        $this->getChannel(Channel::META_CONNECT)->addListener(new ConnectHandler());
-        $this->getChannel(Channel::META_SUBSCRIBE)->addListener(new SubscribeHandler());
-        $this->getChannel(Channel::META_UNSUBSCRIBE)->addListener(new UnsubscribeHandler());
-        $this->getChannel(Channel::META_DISCONNECT)->addListener(new DisconnectHandler());
+        $this->getChannel(Channel::META_HANDSHAKE)->addListener(new HandshakeHandler($this));
+        $this->getChannel(Channel::META_CONNECT)->addListener(new ConnectHandler($this));
+        $this->getChannel(Channel::META_SUBSCRIBE)->addListener(new SubscribeHandler($this));
+        $this->getChannel(Channel::META_UNSUBSCRIBE)->addListener(new UnsubscribeHandler($this));
+        $this->getChannel(Channel::META_DISCONNECT)->addListener(new DisconnectHandler($this));
     }
 
     protected function initializeJSONContext()
@@ -239,7 +230,8 @@ class BayeuxServerImpl implements BayeuxServer
             }
             */
         }
-        $this->_options[self::JSON_CONTEXT] = $this->_jsonContext;
+
+        $this->setOption(self::JSON_CONTEXT, $this->_jsonContext);
     }
 
 
@@ -281,13 +273,9 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    public function getOptions()
-    {
+    public function getOptions() {
         return $this->_options;
     }
-
-
-
 
     /** Get an option value as a long
      * @param name
@@ -307,8 +295,7 @@ class BayeuxServerImpl implements BayeuxServer
     /**
      * @see org.cometd.bayeux.Bayeux#getOptionNames()
      */
-    public function getOptionNames()
-    {
+    public function getOptionNames() {
         return array_keys($this->_options);
     }
 
@@ -321,8 +308,7 @@ class BayeuxServerImpl implements BayeuxServer
         $this->_options[$qualifiedName] = $value;
     }
 
-    public function setOptions(array $options)
-    {
+    public function setOptions(array $options) {
         $this->_options = $options;
     }
 
@@ -333,7 +319,7 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    public function setCurrentTransport(AbstractServerTransport $transport)
+    public function setCurrentTransport(AbstractServerTransport $transport = null)
     {
         $this->_currentTransport = $transport;
     }
@@ -659,37 +645,34 @@ class BayeuxServerImpl implements BayeuxServer
      * @param message The message.
      * @return An unextended reply message
      */
-    public function handle(ServerSessionImpl $session, ServerMessage\Mutable $message)
-    {
+    public function handle(ServerSessionImpl $session = null, ServerMessage\Mutable $message) {
         /* if ($this->_logger->isDebugEnabled()) {
             $this->_logger.debug(">  " + message + " " + session);
         } */
 
         $reply = null;
-        if (! $this->extendRecv($session, $message) || $session != null && ! $session->extendRecv($message))
-        {
+        if (! $this->extendRecv($session, $message)
+            || $session != null
+                && ! $session->extendRecv($message)) {
             $reply = $this->createReply($message);
             $this->error($reply, "404::message deleted");
-        }
-        else
-        {
+
+        } else {
+
             /* if ($this->_logger->isDebugEnabled()) {
                 $this->_logger->debug(">> " + message);
             } */
 
             $channelName = $message->getChannel();
-
-            $channel;
+            $channel = null;
             if ($channelName == null)
             {
                 $reply = $this->createReply($message);
                 $this->error($reply, "400::channel missing");
-            }
-            else
-            {
+
+            } else {
                 $channel = $this->getChannel($channelName);
-                if ($channel == null)
-                {
+                if ($channel == null) {
                     $creationResult = $this->isCreationAuthorized($session, $message, $channelName);
                     if ($creationResult instanceof Authorizer\Result\Denied)
                     {
@@ -708,6 +691,7 @@ class BayeuxServerImpl implements BayeuxServer
                 {
                     if ($channel->isMeta())
                     {
+
                         if ($session == null && ! (Channel::META_HANDSHAKE == $channelName))
                         {
                             $reply = $this->createReply($message);
@@ -845,7 +829,7 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    public function doPublish(ServerSessionImpl $from, ServerChannelImpl $to, ServerMessage\Mutable $mutable)
+    public function doPublish(ServerSessionImpl $from = null, ServerChannelImpl $to, ServerMessage\Mutable $mutable)
     {
         // check the parent channels
         $parent = $to->getChannelId()->getParent();
@@ -952,7 +936,6 @@ class BayeuxServerImpl implements BayeuxServer
         if ($to->isMeta())
         {
             foreach ($to->getListeners() as $listener) {
-
                 if ($listener instanceof BayeuxServerImpl\HandlerListener) {
                     $listener->onMessage($from, $mutable);
                 }
@@ -1021,20 +1004,17 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    protected function extendRecv(ServerSessionImpl $from, ServerMessage\Mutable $message)
-    {
-        if ($message->isMeta())
-        {
+    protected function extendRecv(ServerSessionImpl $from = null, ServerMessage\Mutable $message) {
+        if ($message->isMeta()) {
             foreach ($this->_extensions as $ext) {
-                if (!$ext->rcvMeta($from, $message)) {
+                if (! $ext->rcvMeta($from, $message)) {
                     return false;
                 }
             }
-        }
-        else
-        {
+
+        } else {
             foreach ($this->_extensions as $ext) {
-                if (!$ext->rcv($from, $message)) {
+                if (! $ext->rcv($from, $message)) {
                     return false;
                 }
             }

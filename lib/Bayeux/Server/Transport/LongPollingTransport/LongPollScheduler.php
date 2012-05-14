@@ -1,18 +1,21 @@
 <?php
 
-namespace Bayeux\Server\Transport\HttpTransport;
+namespace Bayeux\Server\Transport\LongPollingTransport;
 
-use Bayeux\Server\AbstractServerTransport;;
+use Bayeux\Server\ServerSessionImpl;
+use Bayeux\Api\Server\ServerMessage;
+use Bayeux\Server\AbstractServerTransport;
 
-class LongPollScheduler implements AbstractServerTransport\OneTimeScheduler, ContinuationListener
-{
+class LongPollScheduler implements AbstractServerTransport\OneTimeScheduler {
+
+    const ATTRIBUTE = "org.cometd.scheduler";
+
     private $_session;
     private $_continuation;
     private $_reply;
     private $_browserId;
 
-    public function __construct(ServerSessionImpl $session, Continuation $continuation, ServerMessage\Mutable $reply, $browserId)
-    {
+    public function __construct(ServerSessionImpl $session, ServerMessage\Mutable $reply, $browserId) {
         $this->_session = $session;
         $this->_continuation = $continuation;
         $this->_continuation->addContinuationListener(this);
@@ -20,27 +23,22 @@ class LongPollScheduler implements AbstractServerTransport\OneTimeScheduler, Con
         $this->_browserId = $browserId;
     }
 
-    public function cancel()
-    {
-        if ($this->_continuation != null && $this->_continuation->isSuspended() && !$this->_continuation->isExpired())
-        {
-            try
-            {
+    public function cancel() {
+        if ($this->_continuation != null && $this->_continuation->isSuspended() && !$this->_continuation->isExpired()) {
+            try {
                 $this->decBrowserId();
                 $this->_continuation->getServletResponse()->sendError(HttpServletResponse::SC_REQUEST_TIMEOUT);
-            }
-            catch (IOException $e)
-            {
+
+            } catch (IOException $e) {
                 $this->getBayeux()->getLogger()->ignore($e);
             }
 
             try
             {
                 $this->_continuation->complete();
-            }
-            catch (\Exception $e)
-            {
-                $this->getBayeux()->getLogger()->ignore(e);
+
+            } catch (\Exception $e) {
+                $this->getBayeux()->getLogger()->ignore($e);
             }
         }
     }
@@ -68,7 +66,7 @@ class LongPollScheduler implements AbstractServerTransport\OneTimeScheduler, Con
 
     public function onTimeout(Continuation $continuation)
     {
-        _session.setScheduler(null);
+        $this->_session->setScheduler(null);
     }
 
     private function decBrowserId()
