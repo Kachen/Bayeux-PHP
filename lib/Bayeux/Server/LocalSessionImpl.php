@@ -12,7 +12,6 @@ use Bayeux\Api\ChannelId;
 use Bayeux\Api\Channel;
 use Bayeux\Api\Message;
 
-/* ------------------------------------------------------------ */
 /** A LocalSession implementation.
  * <p>
  * This session is local to the {@link BayeuxServer} instance and
@@ -35,11 +34,11 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         $this->_idHint = $idHint;
     }
 
-    public function receive(Message\Mutable $message)
-    {
+    public function receive(Message\Mutable $message) {
         parent::receive($message);
-        if (Channel::META_DISCONNECT == $message->getChannel() && $message->isSuccessful())
+        if (Channel::META_DISCONNECT == $message->getChannel() && $message->isSuccessful()) {
             $this->_session = null;
+        }
     }
 
     /**
@@ -55,16 +54,14 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
     /**
      * @see org.cometd.common.AbstractClientSession#newChannelId(java.lang.String)
      */
-    public function newChannelId($channelId)
-    {
+    public function newChannelId($channelId) {
         return $this->_bayeux->newChannelId($channelId);
     }
 
     /**
      * @see org.cometd.common.AbstractClientSession#sendBatch()
      */
-    protected function sendBatch()
-    {
+    protected function sendBatch() {
         while(! $this->_queue->isEmpty())
         {
             $message = $this->_queue->dequeue();
@@ -72,16 +69,14 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         }
     }
 
-    public function getServerSession()
-    {
+    public function getServerSession() {
         if ($this->_session == null) {
             throw new IllegalStateException();
         }
         return $this->_session;
     }
 
-    public function handshake($template = null)
-    {
+    public function handshake($template = null) {
         if ($this->_session != null) {
             throw new \IllegalStateException();
         }
@@ -123,8 +118,7 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         $message->setAssociated(null);
     }
 
-    public function disconnect()
-    {
+    public function disconnect() {
         if ($this->_session!=null)
         {
             $message = $this->_bayeux->newMessage();
@@ -137,34 +131,25 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         }
     }
 
-    public function getId()
-    {
+    public function getId() {
         if ($this->_session == null) {
             throw new \Exception("!handshake");
         }
         return $this->_session->getId();
     }
 
-    /* ------------------------------------------------------------ */
-    public function isConnected()
-    {
+    public function isConnected() {
         return $this->_session != null && $this->_session->isConnected();
     }
 
-    /* ------------------------------------------------------------ */
-    public function isHandshook()
-    {
-        return $this->_session!=null && $this->_session->isHandshook();
+    public function isHandshook() {
+        return $this->_session != null && $this->_session->isHandshook();
     }
 
-    /* ------------------------------------------------------------ */
-//     @Override
-    public function toString()
-    {
+    public function toString() {
         return 'L:' . ($this->_session == null ? $this->_idHint . '?' : $this->_session->getId());
     }
 
-    /* ------------------------------------------------------------ */
     /** Send a message (to the server).
      * <p>
      * This method will either batch the message or call {@link #doSend(ServerSessionImpl, org.cometd.bayeux.server.ServerMessage.Mutable)}
@@ -180,7 +165,6 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         }
     }
 
-    /* ------------------------------------------------------------ */
     /** Send a message (to the server).
      * <p>
      * Extends and sends the message without batching.

@@ -3,6 +3,8 @@
 namespace Bayeux\Server;
 
 
+use Bayeux\Http\Response;
+
 use Zend\Http\Headers;
 use Bayeux\Http\Request;
 
@@ -12,13 +14,13 @@ use Bayeux\Http\Request;
 abstract class AbstractBayeuxClientServerTest extends AbstractBayeuxServerTest
 {
 
-    protected function extractClientId(ContentExchange $handshake)
+    protected function extractClientId(Response $response)
     {
-        $content = handshake.getResponseContent();
-        $matcher = Pattern.compile("\"clientId\"\\s*:\\s*\"([^\"]*)\"").matcher(content);
-        $this->assertTrue(matcher.find());
-        $clientId = matcher.group(1);
-        $this->assertTrue(clientId.length() > 0);
+        $content = $response->getContent();
+        $count = preg_match('/"clientId"\\s*:\\s*"([^"]*)"/', $content, $match);
+        $this->assertEquals(1, $count);
+        $clientId = $match[1];
+        $this->assertTrue(strlen($clientId) > 0);
         return $clientId;
     }
 
@@ -36,11 +38,15 @@ abstract class AbstractBayeuxClientServerTest extends AbstractBayeuxServerTest
         return $cookieName . "=" . bayeuxCookie;
     }
 
+    /**
+     * @param string
+     * @return \Bayeux\Http\Response
+     */
     protected function newBayeuxExchange($requestBody)
     {
         $request = new Request();
         $this->configureBayeuxExchange($request, $requestBody, 'utf-8');
-        return $request;
+        return $this->loop($request);
     }
 
     protected function configureBayeuxExchange(Request $request, $requestBody, $encoding)
@@ -49,6 +55,7 @@ abstract class AbstractBayeuxClientServerTest extends AbstractBayeuxServerTest
         $request->setMethod(Request::METHOD_POST);
         $header = new \Bayeux\Http\Headers();
         $header->addHeaderLine("Content-Type: application/json;charset={$encoding}");
+        $header->addHeaderLine("User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/12.0");
         $request->setHeaders($header);
         $request->setContent($requestBody);
     }

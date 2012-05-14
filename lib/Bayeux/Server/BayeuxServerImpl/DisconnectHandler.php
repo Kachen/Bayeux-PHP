@@ -7,8 +7,7 @@ use Bayeux\Server\ServerSessionImpl;
 
 class DisconnectHandler extends HandlerListener
 {
-    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message)
-    {
+    public function onMessage(ServerSessionImpl $session, ServerMessage\Mutable $message) {
         $reply = $this->createReply($message);
         if ($this->isSessionUnknown($session))
         {

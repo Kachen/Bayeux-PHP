@@ -59,7 +59,7 @@ class ServerSessionImpl implements ServerSession
         $this->_subscribedTo = new \SplObjectStorage();
 
         $this->_bayeux = $bayeux;
-        //$this->_logger=$bayeux->getLogger();
+        //$this->_logger = $bayeux->getLogger();
         $this->_localSession = $localSession;
 
         $id = session_id();
@@ -94,7 +94,6 @@ class ServerSessionImpl implements ServerSession
         return $this->_userAgent;
     }
 
-    /* ------------------------------------------------------------ */
     /** Set the userAgent.
      * @param userAgent the userAgent to set
      */
@@ -103,7 +102,6 @@ class ServerSessionImpl implements ServerSession
         $this->_userAgent = $userAgent;
     }
 
-    /* ------------------------------------------------------------ */
     public function sweep($now)
     {
         if ($this->isLocalSession()) {
@@ -149,19 +147,16 @@ class ServerSessionImpl implements ServerSession
         $this->_extensions.remove($extension);
     }
 
-    /* ------------------------------------------------------------ */
     public function addExtension(Extension $extension)
     {
         $this->_extensions[] = $extension;
     }
 
-    /* ------------------------------------------------------------ */
     protected function getExtensions()
     {
         return $this->_extensions;
     }
 
-    /* ------------------------------------------------------------ */
     public function batch($batch)
     {
         $this->startBatch();
@@ -206,18 +201,15 @@ class ServerSessionImpl implements ServerSession
         $this->doDeliver($session, $message);
     }
 
-    /* ------------------------------------------------------------ */
-    public  function doDeliver(ServerSession $from, ServerMessage\Mutable $mutable)
+    public function doDeliver(ServerSession $from, ServerMessage\Mutable $mutable)
     {
         $message = null;
-        if ($mutable->isMeta())
-        {
+        if ($mutable->isMeta()) {
             if (!$this->extendSendMeta($mutable)) {
                 return;
             }
-        }
-        else
-        {
+
+        } else {
             $message = $this->extendSendMessage($mutable);
         }
 
@@ -256,45 +248,35 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    private function notifyQueueMaxed($listener, ServerSession $from, ServerMessage $message)
-    {
+    private function notifyQueueMaxed($listener, ServerSession $from, ServerMessage $message) {
         if (! ($listener instanceof MaxQueueListener) || ! ($listener instanceof MessageListener) ) {
             throw new \InvalidArgumentException();
         }
-        try
-        {
+        try {
             return $listener->queueMaxed($this, $from, $message);
-        }
-        catch (Exception $x)
-        {
+
+        } catch (Exception $x) {
             echo ("Exception while invoking listener " . $listener . $x);
             return true;
         }
     }
 
-    private function notifyOnMessage(MessageListener $listener, ServerSession $from, ServerMessage $message)
-    {
-        try
-        {
+    private function notifyOnMessage(MessageListener $listener, ServerSession $from, ServerMessage $message) {
+        try {
             return $listener->onMessage($this, $from, $message);
-        }
-        catch (\Exception $x)
-        {
+
+        } catch (\Exception $x) {
             throw $x;
             //_logger.info("Exception while invoking listener " + listener, x);
             return true;
         }
     }
 
-
-    /* ------------------------------------------------------------ */
-    public function handshake()
-    {
+    public function handshake() {
         $this->_handshook = true;
 
         $transport = $this->_bayeux->getCurrentTransport();
-        if ($transport != null)
-        {
+        if ($transport != null) {
             $this->_maxQueue = $transport->getOption("maxQueue", -1);
             $this->_maxInterval = $this->_interval >= 0 ? $this->_interval + $transport->getMaxInterval() : $transport->getMaxInterval();
             $this->_maxServerInterval = $transport->getOption("maxServerInterval", 10 * $this->_maxInterval);
@@ -302,48 +284,42 @@ class ServerSessionImpl implements ServerSession
             if ($this->_maxLazy > 0)
             {
                 /*$this->_lazyTask = new Timeout.Task()
+                 {
+                @Override
+                public void expired()
                 {
-                    @Override
-                    public void expired()
-                    {
-                        flush();
-                    }
+                flush();
+                }
 
-                    @Override
-                    public String toString()
-                    {
-                        return "LazyTask@" + getId();
-                    }
+                @Override
+                public String toString()
+                {
+                return "LazyTask@" + getId();
+                }
                 };*/
             }
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function connect()
-    {
+    public function connect() {
         $this->_connected = true;
         $this->cancelIntervalTimeout();
     }
 
-    /* ------------------------------------------------------------ */
-    public function disconnect()
-    {
+    public function disconnect() {
         $connected = $this->_bayeux->removeServerSession($this, false);
-        if ($connected)
-        {
+        if ($connected) {
             $message = $this->_bayeux->newMessage();
             $message->setClientId($this->getId());
             $message->setChannel(Channel::META_DISCONNECT);
             $message->setSuccessful(true);
             $this->deliver($this, $message);
-            if (count($this->_queue)>0) {
+            if (count($this->_queue) > 0) {
                 $this->flush();
             }
         }
     }
 
-    /* ------------------------------------------------------------ */
     public function endBatch()
     {
         if (--$this->_batch==0 && count($this->_queue)>0)
@@ -354,61 +330,50 @@ class ServerSessionImpl implements ServerSession
         return false;
     }
 
-    /* ------------------------------------------------------------ */
     public function getLocalSession()
     {
         return $this->_localSession;
     }
 
-    /* ------------------------------------------------------------ */
     public function isLocalSession()
     {
         return $this->_localSession != null;
     }
 
-    /* ------------------------------------------------------------ */
     public function startBatch()
     {
-            ++$this->_batch;
+        ++$this->_batch;
     }
 
-    /* ------------------------------------------------------------ */
-    public function addListener(ServerSessionListener $listener)
-    {
+    public function addListener(ServerSessionListener $listener) {
         $this->_listeners[] = $listener;
     }
 
-    /* ------------------------------------------------------------ */
     public function getId()
     {
         return $this->_id;
     }
 
-    /* ------------------------------------------------------------ */
     public function getLock()
     {
         return $this->_queue;
     }
 
-    /* ------------------------------------------------------------ */
     public function getQueue()
     {
         return $this->_queue;
     }
 
-    /* ------------------------------------------------------------ */
     public function isQueueEmpty()
     {
         return count($this->_queue)==0;
     }
 
-    /* ------------------------------------------------------------ */
     public function addQueue(ServerMessage $message)
     {
         $this->_queue->enqueue($message);
     }
 
-    /* ------------------------------------------------------------ */
     public function replaceQueue(\SplQueue $queue)
     {
         $this->_queue->rewind();
@@ -417,7 +382,6 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    /* ------------------------------------------------------------ */
     public function takeQueue()
     {
         $copy = new \SplQueue();
@@ -451,13 +415,11 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    /* ------------------------------------------------------------ */
     public function removeListener(ServerSessionListener $listener)
     {
         $this->_listeners.remove(listener);
     }
 
-    /* ------------------------------------------------------------ */
     public function setScheduler(AbstractServerTransport\Scheduler $newScheduler = null)
     {
         if ($newScheduler == null) {
@@ -533,27 +495,27 @@ class ServerSessionImpl implements ServerSession
 
     public function cancelSchedule()
     {
-            $scheduler=$this->_scheduler;
-            if ($scheduler!=null)
-            {
-                $this->_scheduler=null;
-                $scheduler->cancel();
-            }
+        $scheduler=$this->_scheduler;
+        if ($scheduler!=null)
+        {
+            $this->_scheduler=null;
+            $scheduler->cancel();
+        }
     }
 
     public function cancelIntervalTimeout()
     {
-            $now = microtime();
-            $this->_connectTimestamp = $now;
-            $this->_intervalTimestamp = 0;
+        $now = microtime();
+        $this->_connectTimestamp = $now;
+        $this->_intervalTimestamp = 0;
     }
 
     public function startIntervalTimeout($defaultInterval)
     {
         $interval = $this->calculateInterval($defaultInterval);
-            $now = microtime();
-            $this->_lastConnect = $now - $this->_connectTimestamp;
-            $this->_intervalTimestamp = $now + $interval + $this->_maxInterval;
+        $now = microtime();
+        $this->_lastConnect = $now - $this->_connectTimestamp;
+        $this->_intervalTimestamp = $now + $interval + $this->_maxInterval;
     }
 
     protected function getMaxInterval()
@@ -566,7 +528,6 @@ class ServerSessionImpl implements ServerSession
         return $this->_intervalTimestamp;
     }
 
-    /* ------------------------------------------------------------ */
     public function getAttribute($name)
     {
         if (isset($this->_attributes[$name])) {
@@ -575,13 +536,11 @@ class ServerSessionImpl implements ServerSession
         return null;
     }
 
-    /* ------------------------------------------------------------ */
     public function getAttributeNames()
     {
         return array_keys($this->_attributes);
     }
 
-    /* ------------------------------------------------------------ */
     public function removeAttribute($name)
     {
         $old = $this->getAttribute($name);
@@ -589,25 +548,21 @@ class ServerSessionImpl implements ServerSession
         return $old;
     }
 
-    /* ------------------------------------------------------------ */
     public function setAttribute($name, $value)
     {
         $this->_attributes[$name] = $value;
     }
 
-    /* ------------------------------------------------------------ */
     public function isConnected()
     {
         return $this->_connected;
     }
 
-    /* ------------------------------------------------------------ */
     public function isHandshook()
     {
         return $this->_handshook;
     }
 
-    /* ------------------------------------------------------------ */
     public function extendRecv(ServerMessage\Mutable $message)
     {
         if ($message->isMeta())
@@ -658,7 +613,6 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    /* ------------------------------------------------------------ */
     public function extendSendMeta(ServerMessage\Mutable $message)
     {
         if (!$message->isMeta()) {
@@ -687,7 +641,6 @@ class ServerSessionImpl implements ServerSession
         }
     }
 
-    /* ------------------------------------------------------------ */
     public function extendSendMessage(ServerMessage $message)
     {
         if ($message->isMeta()) {
@@ -756,38 +709,32 @@ class ServerSessionImpl implements ServerSession
         return $this->_timeout;
     }
 
-    public function getInterval()
-    {
+    public function getInterval() {
         return $this->_interval;
     }
 
-    public function setTimeout($timeoutMS)
-    {
+    public function setTimeout($timeoutMS) {
         $this->_timeout = $timeoutMS;
         $this->_advisedTransport = null;
     }
 
-    public function setInterval($intervalMS)
-    {
+    public function setInterval($intervalMS) {
         $this->_interval = $intervalMS;
         $this->_advisedTransport = null;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * @param timedout
      * @return True if the session was connected.
      */
-    public function removed($timedout)
-    {
+    public function removed($timedout) {
         $connected = $this->_connected;
         $this->_connected = false;
         $handshook = $this->_handshook;
         $this->_handshoo = false;
         if ($connected || $handshook)
         {
-            foreach ($this->_subscribedTo as $channel)
-            {
+            foreach ($this->_subscribedTo as $channel) {
                 $channel->unsubscribe($this);
             }
 
@@ -801,46 +748,34 @@ class ServerSessionImpl implements ServerSession
         return $connected;
     }
 
-    private function notifyRemoved(ServerSession\RemoveListener $listener, ServerSession $serverSession, $timedout)
-    {
-        try
-        {
+    private function notifyRemoved(ServerSession\RemoveListener $listener, ServerSession $serverSession, $timedout) {
+        try {
             $listener->removed($serverSession, $timedout);
-        }
-        catch (\Exception $x)
-        {
+        } catch (\Exception $x) {
             echo "Exception while invoking listener " . $listener . $x;
             //_logger.info("Exception while invoking listener " + listener, x);
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function setMetaConnectDeliveryOnly($meta)
-    {
+    public function setMetaConnectDeliveryOnly($meta) {
         $this->_metaConnectDelivery = $meta;
     }
 
-    /* ------------------------------------------------------------ */
-    public function isMetaConnectDeliveryOnly()
-    {
+    public function isMetaConnectDeliveryOnly() {
         return $this->_metaConnectDelivery;
     }
 
-    /* ------------------------------------------------------------ */
     public function subscribedTo(ServerChannelImpl $channel)
     {
         $this->_subscribedTo->attach($channel, true);
     }
 
-    /* ------------------------------------------------------------ */
     public function unsubscribedFrom(ServerChannelImpl $channel)
     {
         $this->_subscribedTo->detach($channel);
     }
 
-    /* ------------------------------------------------------------ */
-    protected function dump($b, $indent)
-    {
+    protected function dump($b, $indent) {
         $b .= $this->toString();
         $b .= '\n';
 
@@ -864,14 +799,11 @@ class ServerSessionImpl implements ServerSession
         return $this->toString();
     }
 
-    /* ------------------------------------------------------------ */
-    public function toString()
-    {
+    public function toString() {
         return sprintf("%s - last connect %d ms ago", $this->_id, $this->_lastConnect);
     }
 
-    public function calculateTimeout($defaultTimeout)
-    {
+    public function calculateTimeout($defaultTimeout) {
         if ($this->_transientTimeout >= 0) {
             return $this->_transientTimeout;
         }
@@ -883,8 +815,7 @@ class ServerSessionImpl implements ServerSession
         return $defaultTimeout;
     }
 
-    public function calculateInterval($defaultInterval)
-    {
+    public function calculateInterval($defaultInterval) {
         if ($this->_transientInterval >= 0) {
             return $this->_transientInterval;
         }
@@ -905,8 +836,7 @@ class ServerSessionImpl implements ServerSession
      * @param timeout the value to update the timeout to
      * @see #updateTransientInterval(long)
      */
-    public function updateTransientTimeout($timeout)
-    {
+    public function updateTransientTimeout($timeout) {
         $this->_transientTimeout = $timeout;
     }
 
@@ -919,8 +849,7 @@ class ServerSessionImpl implements ServerSession
      * @param interval the value to update the interval to
      * @see #updateTransientTimeout(long)
      */
-    public function updateTransientInterval($interval)
-    {
+    public function updateTransientInterval($interval) {
         $this->_transientInterval = $interval;
     }
 }

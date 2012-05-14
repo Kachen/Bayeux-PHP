@@ -3,7 +3,6 @@
 namespace Bayeux\Server;
 
 use Bayeux\Api\Server\ConfigurableServerChannel;
-
 use Bayeux\Api\Server\BayeuxServer\ChannelListener;
 use Bayeux\Api\Server\Authorizer;
 use Bayeux\Server\BayeuxServerImpl\HandlerListener;
@@ -27,7 +26,6 @@ use Bayeux\Api\Server\BayeuxServer\Extension;
 use Bayeux\Api\Server\BayeuxServer;
 use Bayeux\Api\Server\ServerChannel\ServerChannelListener;
 use Bayeux\Api\Channel;
-
 
 /**
  *
@@ -77,13 +75,11 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    public function getLogger()
-    {
+    public function getLogger() {
         return $this->_logger;
     }
 
-    private function debug($message)
-    {
+    private function debug($message) {
         $args = func_get_args();
         array_shift($args);
 /*         if ($this->_logLevel >= self::DEBUG_LOG_LEVEL) {
@@ -97,10 +93,10 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->_logLevel;
     }
 
-
     /**
+     *
+     * @throws \Exception
      */
-    //@Override
     public function start() {
         $this->_logLevel = self::OFF_LOG_LEVEL;
 
@@ -126,8 +122,7 @@ class BayeuxServerImpl implements BayeuxServer
             throw new \Exception("No allowed transport names are configured, there must be at least one");
         }
 
-        foreach ($allowedTransportNames as $allowedTransportName)
-        {
+        foreach ($allowedTransportNames as $allowedTransportName) {
             $allowedTransport = $this->getTransport($allowedTransportName);
             if ($allowedTransport instanceof AbstractServerTransport) {
                 $allowedTransport->init();
@@ -137,8 +132,7 @@ class BayeuxServerImpl implements BayeuxServer
         //$this->_timer = new Timer("BayeuxServer@" . $this->hashCode(), true);
 
         $tick_interval = $this->getOption("tickIntervalMs", 97);
-        if ($tick_interval > 0)
-        {
+        if ($tick_interval > 0) {
             /*$this->_timer->schedule(new TimerTask()
             {
                 @Override
@@ -150,8 +144,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
 
         $sweep_interval = $this->getOption("sweepIntervalMs", 997);
-        if ($sweep_interval > 0)
-        {
+        if ($sweep_interval > 0) {
             /*$this->_timer.schedule(new TimerTask()
             {
                 @Override
@@ -769,11 +762,9 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->isOperationAuthorized(Authorizer\Operation::CREATE, $session, $message, new ChannelId($channel));
     }
 
-    private function isOperationAuthorized(/*Authorizer\Operation*/ $operation, ServerSession $session, ServerMessage $message, ChannelId $channelId)
-    {
+    private function isOperationAuthorized(/*Authorizer\Operation*/ $operation, ServerSession $session, ServerMessage $message, ChannelId $channelId) {
         $channels = array();
-        foreach ($channelId->getWilds() as $wildName)
-        {
+        foreach ($channelId->getWilds() as $wildName) {
             if (!empty($this->_channels[$wildName])) {
                 $channels[] = $this->_channels[$wildName];
             }
@@ -952,7 +943,7 @@ class BayeuxServerImpl implements BayeuxServer
         $message->freeze($json);
     }
 
-    private function notifyOnMessage(ServerChannel\MessageListener $listener, ServerSession $from, ServerChannel $to, ServerMessage\Mutable $mutable)
+    private function notifyOnMessage(ServerChannel\MessageListener $listener, ServerSession $from = null, ServerChannel $to, ServerMessage\Mutable $mutable)
     {
         try
         {
@@ -960,6 +951,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
         catch (\Exception $x)
         {
+            throw $x;
             echo "Exception while invoking listener " . $listener . $x;
             //_logger.info("Exception while invoking listener " + listener, x);
             return true;
@@ -1226,8 +1218,4 @@ class BayeuxServerImpl implements BayeuxServer
 
         return b.toString();
     }
-
-
 }
-
-

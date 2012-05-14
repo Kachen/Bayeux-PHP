@@ -2,6 +2,10 @@
 
 namespace Bayeux\Server\Transport;
 
+use Bayeux\Api\Message;
+
+use Bayeux\Server\ServerSessionImpl;
+
 use Bayeux\Api\Channel;
 
 use Bayeux\Server\Transport\LongPollingTransport\LongPollScheduler;
@@ -58,7 +62,7 @@ abstract class LongPollingTransport extends HttpTransport
         $this->_allowMultiSessionsNoBrowser = $this->getOption(self::ALLOW_MULTI_SESSIONS_NO_BROWSER_OPTION, $this->_allowMultiSessionsNoBrowser);
     }
 
-    protected function findBrowserId(HttpServletRequest $request)
+    protected function findBrowserId(Request $request)
     {
         $cookies = $request->getCookies();
         if ($cookies != null) {
@@ -153,16 +157,14 @@ abstract class LongPollingTransport extends HttpTransport
             $session = null;
             $connect = false;
 
-            try
-            {
+            try {
                 $messages = $this->parseMessages($request);
                 if ($messages == null) {
                     return;
                 }
 
                 $writer = null;
-                foreach ($messages as $message)
-                {
+                foreach ($messages as $message) {
                     // Is this a connect?
                     $connect = Channel::META_CONNECT == $message->getChannel();
 
@@ -201,28 +203,29 @@ abstract class LongPollingTransport extends HttpTransport
 
                             // Get the user agent while we are at it, and add the browser ID cookie
                             if ($session != null) {
-                                $userAgent = $request->getHeader()->get("User-Agent");
-                                var_dump($userAgent);
-                                exit;
+                                $userAgent = $request->headers()->get("User-Agent");
+                                if ($userAgent) {
+                                    $userAgent = $userAgent->getFieldValue();
+                                }
                                 $session->setUserAgent($userAgent);
 
-                                $browserId = $this->findBrowserId($request);
-                                if ($browserId == null) {
-                                    $this->setBrowserId($request, $response);
-                                }
+                                //$browserId = $this->findBrowserId($request);
+                                //if ($browserId == null) {
+                                //    $this->setBrowserId($request, $response);
+                                //}
                             }
 
                         } else {
                             // If this is a connect or we can send messages with any response
                             if ($connect || !($this->isMetaConnectDeliveryOnly() || $session->isMetaConnectDeliveryOnly())) {
                                 // Send the queued messages
-                                $writer = sendQueue(request, response, session, writer);
+                                $writer = $this->sendQueue($request, $response, $session, $writer);
                             }
 
                             // Special handling for connect
                             if ($connect)
                             {
-                                $timeout = $session->calculateTimeout(getTimeout());
+                                $timeout = $session->calculateTimeout($this->getTimeout());
 
                                 // If the writer is non null, we have already started sending a response, so we should not suspend
                                 if ($writer == null && $reply->isSuccessful() && $session->isQueueEmpty())
@@ -231,12 +234,14 @@ abstract class LongPollingTransport extends HttpTransport
                                     // Note that CORS requests do not send cookies, so we need to handle them specially
                                     // CORS requests always have the Origin header
 
-                                    $browserId = $this->findBrowserId($request);
-                                    $shouldSuspend;
+                                    //FIXME: varias conexões do mesmo browser
+                                    //$browserId = $this->findBrowserId($request);
+                                    $browserId = null;
+                                    $shouldSuspend = false;
                                     if ($browserId != null) {
-                                        $shouldSuspend = $this->incBrowserId(browserId);
+                                        //$shouldSuspend = $this->incBrowserId($browserId);
                                     } else {
-                                        $shouldSuspend = $this->_allowMultiSessionsNoBrowser || $request->getHeader("Origin") != null;
+                                        //$shouldSuspend = $this->_allowMultiSessionsNoBrowser || $request->getHeader("Origin") != null;
                                     }
 
                                     if ($shouldSuspend) {
@@ -258,67 +263,66 @@ abstract class LongPollingTransport extends HttpTransport
                                         // There are multiple sessions from the same browser
                                         $advice = $reply->getAdvice(true);
 
-                                        if ($browserId != null) {
-                                            advice.put("multiple-clients", true);
-                                        }
+                                        //if ($browserId != null) {
+                                            $advice["multiple-clients"] = true;
+                                        //}
 
-                                        if (_multiSessionInterval > 0)
+                                        if ($this->_multiSessionInterval > 0)
                                         {
-                                            advice.put(Message.RECONNECT_FIELD, Message.RECONNECT_RETRY_VALUE);
-                                            advice.put(Message.INTERVAL_FIELD, _multiSessionInterval);
+                                            $advice[Message::RECONNECT_FIELD] = Message::RECONNECT_RETRY_VALUE;
+                                            $advice[Message::INTERVAL_FIELD] = $this->_multiSessionInterval;
+
+                                        } else {
+                                            $advice[Message::RECONNECT_FIELD] = Message::RECONNECT_NONE_VALUE;
+                                            $reply->setSuccessful(false);
                                         }
-                                        else
-                                        {
-                                            advice.put(Message.RECONNECT_FIELD, Message.RECONNECT_NONE_VALUE);
-                                            reply.setSuccessful(false);
-                                        }
-                                        session.reAdvise();
+                                        $session->reAdvise();
                                     }
                                 }
 
-                                if (reply != null && session.isConnected())
-                                session.startIntervalTimeout();
+                                if ($reply != null && $session->isConnected()) {
+                                    $session->startIntervalTimeout($this->getInterval());
+                                }
                             }
                         }
 
                         // If the reply has not been otherwise handled, send it
-                        if (reply != null)
+                        if ($reply != null)
                         {
-                            $reply = getBayeux().extendReply(session, session, reply);
-
-                            if (reply != null) {
-                                $writer = send(request, response, writer, reply);
+                            $reply = $this->getBayeux()->extendReply($session, $session, $reply);
+                            if ($reply != null) {
+                                //$writer =
+                                $this->send($request, $response, $writer, $reply);
                             }
                         }
                     }
 
                     // Disassociate the reply
-                    $message.setAssociated(null);
+                    $message->setAssociated(null);
                 }
-                if (writer != null) {
-                    $this->complete(writer);
+                if ($writer != null) {
+                    $this->complete($writer);
                 }
             }
             catch (ParseException $x)
             {
                 $this->handleJSONParseException(request, response, x.getMessage(), x.getCause());
             }
-            catch(\Exception $e)
-            {
-                throw $e;
+            //catch(\Exception $e)
+            //{
+                //throw $e;
                 // If we started a batch, end it now
                 if ($batch) {
-                    $ended = session.endBatch();
+                    $ended = $session->endBatch();
 
                     // Flush session if not done by the batch, since some browser order <script> requests
-                    if (!ended && isAlwaysFlushingAfterHandle())
+                    if (! $ended && $this->isAlwaysFlushingAfterHandle()) {
                         $session->flush();
-                }
-                else if ($session != null && !$connect && $this->isAlwaysFlushingAfterHandle())
-                {
+                    }
+                } else if ($session != null && !$connect && $this->isAlwaysFlushingAfterHandle()) {
                     $session->flush();
                 }
-            }
+            //}
 
         } else {
             // Get the resumed session
@@ -331,9 +335,9 @@ abstract class LongPollingTransport extends HttpTransport
             $writer = $this->sendQueue($request, $response, $session, null);
 
             // Send the connect reply
-            $reply = $scheduler.getReply();
-            $reply = $this->getBayeux().extendReply(session, session, reply);
-            $writer = $this->send(request, response, writer, reply);
+            $reply = $scheduler->getReply();
+            $reply = $this->getBayeux()->extendReply($session, $session, $reply);
+            $writer = $this->send($request, $response, $writer, $reply);
 
             $this->complete($writer);
         }
@@ -350,8 +354,7 @@ abstract class LongPollingTransport extends HttpTransport
      *
      * @see org.cometd.server.AbstractServerTransport#doSweep()
      */
-    public function doSweep()
-    {
+    public function doSweep() {
         $now = microtime();
         if (0 < $this->_lastSweep && $this->_lastSweep < $now)
         {
@@ -378,7 +381,7 @@ abstract class LongPollingTransport extends HttpTransport
         $this->_lastSweep = $now;
     }
 
-    private function sendQueue(HttpServletRequest $request, HttpServletResponse $response, ServerSessionImpl $session, PrintWriter $writer)
+    private function sendQueue(Request $request, Response $response, ServerSessionImpl $session, $writer)
     {
         $queue = $session->takeQueue();
         foreach ($queue as $m) {

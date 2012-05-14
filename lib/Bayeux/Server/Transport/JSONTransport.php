@@ -63,18 +63,16 @@ class JSONTransport extends LongPollingTransport
     }
 
     protected function send(Request $request, Response $response, $writer, ServerMessage $message) {
-        if ($writer == null)
-        {
-            $response->setContentType($this->_mimeType);
-            $writer = $response->getWriter();
-            $writer->append('[');
+        if ($writer == null) {
+            $response->headers()->addHeaderLine("Content-Type: {$this->_mimeType}");
+            //$writer = $response->getWriter();
+            //$writer .= '[';
+        } else {
+            //$writer .= ',';
         }
-        else
-        {
-            $writer.append(',');
-        }
-        $writer .= $message.getJSON();
-        return $writer;
+        $response->setContent($message->getJSON());
+        return ;
+        return $writer . $message->getJSON();
     }
 
     protected function complete($writer) {

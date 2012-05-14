@@ -52,7 +52,7 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
     public function getJSON()
     {
         //FIXME: colocaro jsoncontext como estatico no constructor e utilizar ele aqui
-        return df_json_encode($this->getArrayCopy());
+        return \json_encode($this->getArrayCopy());
     }
 
     public function getAdvice($create = null)

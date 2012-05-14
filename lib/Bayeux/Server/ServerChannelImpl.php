@@ -18,8 +18,7 @@ use Bayeux\Api\Server\ConfigurableServerChannel;
 use Bayeux\Api\Server\ServerChannel;
 use Bayeux\Api\Session;
 
-class ServerChannelImpl implements ServerChannel
-{
+class ServerChannelImpl implements ServerChannel {
 
     //private $_logger;
     private $_bayeux;
@@ -35,8 +34,6 @@ class ServerChannelImpl implements ServerChannel
     private $_lazy;
     private $_persistent;
 
-
-    /* ------------------------------------------------------------ */
     public function __construct(BayeuxServerImpl $bayeux, ChannelId $id, ServerChannelImpl $parent = null)
     {
         $this->_bayeux = $bayeux;
@@ -49,13 +46,13 @@ class ServerChannelImpl implements ServerChannel
         $this->setPersistent(!$this->isBroadcast());
     }
 
-    /* ------------------------------------------------------------ */
-    /* wait for initialised call.
+    /**
+     * wait for initialised call.
      * wait for bayeux max interval for the channel to be initialised,
-    * which means waiting for addChild to finish calling bayeux.addChannel,
-    * which calls all the listeners.
-    *
-    */
+     * which means waiting for addChild to finish calling bayeux.addChannel,
+     * which calls all the listeners.
+     *
+     */
     public function waitForInitialized()
     {
         try
@@ -70,7 +67,6 @@ class ServerChannelImpl implements ServerChannel
         }
     }
 
-    /* ------------------------------------------------------------ */
     public function initialized()
     {
         $this->resetSweeperPasses();
@@ -82,7 +78,6 @@ class ServerChannelImpl implements ServerChannel
         $this->_sweeperPasses = 0;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * @param session
      * @return true if the subscribe succeeded.
@@ -123,26 +118,20 @@ class ServerChannelImpl implements ServerChannel
         return true;
     }
 
-    private function notifySubscribed(SubscriptionListener $listener, ServerSession $session, ServerChannel $channel)
-    {
+    private function notifySubscribed(SubscriptionListener $listener, ServerSession $session, ServerChannel $channel) {
         if (! ($listener instanceof SubscriptionListener) || ! ($listener instanceof BayeuxServer\SubscriptionListener)) {
             throw new \InvalidArgumentException();
         }
 
-        try
-        {
+        try {
             $listener->subscribed($session, $channel);
-        }
-        catch (\Exception $x)
-        {
+        } catch (\Exception $x) {
             echo "Exception while invoking listener ";
             //_logger.info("Exception while invoking listener " + listener, x);
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function unsubscribe(ServerSession $session)
-    {
+    public function unsubscribe(ServerSession $session) {
         if (! $session instanceof ServerSessionImpl) {
             if ($this->isService()) {
                 return true;
@@ -174,113 +163,81 @@ class ServerChannelImpl implements ServerChannel
         return true;
     }
 
-    private function notifyUnsubscribed($listener, ServerSession $session, ServerChannel $channel)
-    {
+    private function notifyUnsubscribed($listener, ServerSession $session, ServerChannel $channel) {
         //if (! ($listener instanceof SubscriptionListener) && ! ($listener instanceof BayeuxServer\SubscriptionListener)) {
         //    throw new \InvalidArgumentException();
         //}
 
-        try
-        {
+        try {
             $listener->unsubscribed($session, $channel);
-        }
-        catch (\Exception $x)
-        {
+
+        } catch (\Exception $x) {
             echo ("Exception while invoking listener " . $listener . $x);
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function getSubscribers()
-    {
+    public function getSubscribers() {
         return $this->_subscribers;
     }
 
-    public function isBroadcast()
-    {
+    public function isBroadcast() {
         return !$this->isMeta() && !$this->isService();
     }
 
-    /* ------------------------------------------------------------ */
-    public function isDeepWild()
-    {
+    public function isDeepWild() {
         return $this->_id->isDeepWild();
     }
 
-    /* ------------------------------------------------------------ */
-    public function isLazy()
-    {
+    public function isLazy() {
         return $this->_lazy;
     }
 
-    /* ------------------------------------------------------------ */
-    public function isPersistent()
-    {
+    public function isPersistent() {
         return $this->_persistent;
     }
 
-    /* ------------------------------------------------------------ */
-    public function isWild()
-    {
+    public function isWild() {
         return $this->_id->isWild();
     }
 
-    /* ------------------------------------------------------------ */
-    public function setLazy($lazy)
-    {
+    public function setLazy($lazy) {
         $this->_lazy = $lazy;
     }
 
-    /* ------------------------------------------------------------ */
-    public function setPersistent($persistent)
-    {
+    public function setPersistent($persistent) {
         $this->resetSweeperPasses();
         $this->_persistent = $persistent;
     }
 
-    /* ------------------------------------------------------------ */
-    public function addListener(ServerChannelListener $listener)
-    {
+    public function addListener(ServerChannelListener $listener) {
         $this->resetSweeperPasses();
         $this->_listeners[] = $listener;
     }
 
-    /* ------------------------------------------------------------ */
-    public function removeListener(ServerChannelListener $listener)
-    {
+    public function removeListener(ServerChannelListener $listener) {
         $key = array_search($listener, $this->_listeners);
         if ($key !== false) {
             unset($this->_listeners[$key]);
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function getListeners()
-    {
+    public function getListeners() {
         return $this->_listeners;
     }
 
-    /* ------------------------------------------------------------ */
-    public function getChannelId()
-    {
+    public function getChannelId() {
         return $this->_id;
     }
 
-    /* ------------------------------------------------------------ */
-    public function getId()
-    {
+    public function getId() {
         return $this->_id->toString();
     }
 
-    /* ------------------------------------------------------------ */
-    public function isMeta()
-    {
+    public function isMeta() {
         return $this->_id->isMeta();
     }
 
-    /* ------------------------------------------------------------ */
-    public function isService()
-    {
+    public function isService() {
         return $this->_id->isService();
     }
 
@@ -323,9 +280,7 @@ class ServerChannelImpl implements ServerChannel
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function sweep()
-    {
+    public function sweep() {
         foreach ($this->_subscribers as $session)
         {
             if (! $session->isHandshook()) {
@@ -367,9 +322,7 @@ class ServerChannelImpl implements ServerChannel
         $this->remove();
     }
 
-    /* ------------------------------------------------------------ */
-    public function remove()
-    {
+    public function remove() {
         if ($this->_parent != null) {
             $this->_parent->removeChild($this);
         }
@@ -389,43 +342,36 @@ class ServerChannelImpl implements ServerChannel
         $this->_listeners = array();
     }
 
-    public function setAttribute($name, $value)
-    {
+    public function setAttribute($name, $value) {
         $this->_attributes->setAttribute($name, $value);
     }
 
-    public function getAttribute($name)
-    {
+    public function getAttribute($name) {
         return $this->_attributes->getAttribute($name);
     }
 
-    public function getAttributeNames()
-    {
+    public function getAttributeNames() {
         return array_keys($this->_attributes);
     }
 
-    public function removeAttribute($name)
-    {
+    public function removeAttribute($name) {
         $old = $this->getAttribute($name);
         unset($this->_attributes[$name]);
         return $old;
     }
 
-    private function addChild(ServerChannelImpl $child)
-    {
+    private function addChild(ServerChannelImpl $child) {
         $this->_children[] = $child;
     }
 
-    private function removeChild(ServerChannelImpl $child)
-    {
+    private function removeChild(ServerChannelImpl $child) {
         $key = array_search($child, $this->_children);
         if ($key !== false) {
             unset($this->_children[$key]);
         }
     }
 
-    protected function dump($b, $indent)
-    {
+    protected function dump($b, $indent) {
         $b .= $this->toString();
         $b .= $this->isLazy() ?" lazy":"";
         $b .= '\n';
@@ -454,31 +400,22 @@ class ServerChannelImpl implements ServerChannel
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function addAuthorizer(Authorizer $authorizer)
-    {
+    public function addAuthorizer(Authorizer $authorizer) {
         $this->_authorizers[] = $authorizer;
     }
 
-    /* ------------------------------------------------------------ */
-    public function removeAuthorizer(Authorizer $authorizer)
-    {
+    public function removeAuthorizer(Authorizer $authorizer) {
         $key = array_search($authorizer, $this->_authorizers);
         if ($key !== false)  {
             unset($this->_authorizers[$key]);
         }
     }
 
-    /* ------------------------------------------------------------ */
-    public function getAuthorizers()
-    {
+    public function getAuthorizers() {
         return $this->_authorizers;
     }
 
-    /* ------------------------------------------------------------ */
-    //@Override
-    public function toString()
-    {
+    public function toString() {
         return $this->_id->toString();
     }
 }

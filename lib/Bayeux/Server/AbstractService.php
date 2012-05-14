@@ -1,7 +1,4 @@
 <?php
-
-namespace Bayeux\Server;
-
 // ========================================================================
 // Copyright 2008 Mort Bay Consulting Pty. Ltd.
 // ------------------------------------------------------------------------
@@ -16,8 +13,12 @@ namespace Bayeux\Server;
 // limitations under the License.
 //========================================================================
 
+namespace Bayeux\Server;
 
-/* ------------------------------------------------------------ */
+use Bayeux\Api\Server\ServerMessage\Mutable;
+use Bayeux\Api\Server\ServerSession;
+use Bayeux\Api\Server\ServerChannel;
+
 /**
  * Abstract Bayeux Service
  * <p>
@@ -36,6 +37,8 @@ namespace Bayeux\Server;
  *
  * @see {@link BayeuxServer#getSession(String)} as an alternative to AbstractService.
  */
+use Bayeux\Api\Server\BayeuxServer;
+
 abstract class AbstractService
 {
     private $_name;
@@ -43,13 +46,9 @@ abstract class AbstractService
     private $_session;
 
     private $_threadPool;
-    private $_seeOwn=false;
+    public $_seeOwn = false;
     private $_logger;
 
-    /* ------------------------------------------------------------ */
-
-
-    /* ------------------------------------------------------------ */
     /**
      * Instantiate the service. Typically the derived constructor will call @
      * #subscribe(String, String)} to map subscriptions to methods.
@@ -66,38 +65,33 @@ abstract class AbstractService
         if ($maxThreads > 0) {
             setThreadPool(new QueuedThreadPool(maxThreads));
         }
-        $this->_name=$name;
-        $this->_bayeux=$bayeux;
-        $this->_session=$bayeux->newLocalSession($name);
+        $this->_name = $name;
+        $this->_bayeux = $bayeux;
+        $this->_session = $bayeux->newLocalSession($name);
         $this->_session->handshake();
-        $this->_logger=$bayeux->getLogger();
+        $this->_logger = $bayeux->getLogger();
     }
 
-    /* ------------------------------------------------------------ */
     public function getBayeux()
     {
         return $this->_bayeux;
     }
 
-    /* ------------------------------------------------------------ */
     public function getLocalSession()
     {
         return $this->_session;
     }
 
-    /* ------------------------------------------------------------ */
     public function getServerSession()
     {
         return $this->_session->getServerSession();
     }
 
-    /* ------------------------------------------------------------ */
     public function getThreadPool()
     {
         return $this->_threadPool;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * Set the threadpool. If the {@link ThreadPool} is a {@link LifeCycle},
      * then it is started by this method.
@@ -121,19 +115,16 @@ abstract class AbstractService
         $this->_threadPool = $pool;
     }
 
-    /* ------------------------------------------------------------ */
     public function isSeeOwnPublishes()
     {
         return _seeOwn;
     }
 
-    /* ------------------------------------------------------------ */
     public function setSeeOwnPublishes($own)
     {
         $this->_seeOwn=$own;
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * Add a service.
      * <p>Listen to a channel and map a method to handle
@@ -170,65 +161,19 @@ abstract class AbstractService
      *            The name of the method on this object to call when messages
      *            are received.
      */
-    protected function addService($channelId, $methodName)
+    public function addService($channelId, $methodName)
     {
-        if ($this->_logger->isDebugEnabled()) {
+        /*if ($this->_logger->isDebugEnabled()) {
             $this->_logger->debug("subscribe " . $this->_name . "#" . $methodName . " to " . $channelId);
-        }
+        }*/
 
-        $method = null;
-
-        $c = get_class($this);
-        while($c != null && $c != Object::$class) // FIXME: verificar essa logica
-        {
-            $methods = $c->getDeclaredMethods();
-            for ($i=$methods->length; $i-- > 0;)
-            {
-                if ($methodName->equals($methods[$i]->getName()))
-                {
-                    if ($method != null) {
-                        throw new IllegalArgumentException("Multiple methods called '" + methodName + "'");
-                    }
-                    $method=$methods[$i];
-                }
-            }
-            $c=$c->getSuperclass();
-        }
-
-        if ($method == null) {
-            throw new NoSuchMethodError($methodName);
-        }
-
-        $params= $method.getParameterTypes().length;
-
-        if ($params < 2 || $params > 4) {
-            throw new IllegalArgumentException("Method '" + methodName + "' does not have 2, 3 or 4 parameters");
-        }
-        // FIXME: verificar logica
-        //if (!ServerSession::$class->isAssignableFrom($method->getParameterTypes()[0])) {
-        //    throw new IllegalArgumentException("Method '" + methodName + "' does not have Session as first parameter");
-        //}
 
         $this->_bayeux->createIfAbsent($channelId);
         $channel=$this->_bayeux->getChannel($channelId);
 
-        throw new \Exception("zf");
-        // FIXME: criar um closure
-        /*$invoke = $method;
-        $channel->addListener(new ServerChannel\MessageListener()
-        {
-            public boolean onMessage(ServerSession from, ServerChannel channel, Mutable message)
-            {
-                if (_seeOwn || from != getServerSession())
-                    invoke(invoke,from,message);
-
-                return true;
-            }
-        });*/
-
+        $channel->addListener(new MessageListenerService($this, $methodName));
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * Send data to a individual client. The data passed is sent to the client
      * as the "data" member of a message with the given channel and id. The
@@ -254,95 +199,22 @@ abstract class AbstractService
     {
         $toClient->deliver($this->_session->getServerSession(), $onChannel, $data, $id);
     }
+}
 
-    /* ------------------------------------------------------------ */
-    /**
-     * Handle Exception. This method is called when a mapped subscription method
-     * throws and exception while handling a message.
-     *
-     * @param fromClient
-     * @param toClient
-     * @param msg
-     * @param th
-     */
-    protected function exception($method, ServerSession $fromClient, LocalSession $toClient, ServerMessage $msg, Throwable $th)
-    {
-        System.err.println(method+": "+msg);
-        th.printStackTrace();
+class MessageListenerService implements ServerChannel\MessageListener {
+
+    private $service;
+    private $method;
+
+    public function __construct(AbstractService $service, $method) {
+        $this->service = $service;
+        $this->method = $method;
     }
 
-    /* ------------------------------------------------------------ */
-    private function invoke(Method $method, ServerSession $fromClient, ServerMessage $msg)
-    {
-        if ($this->_logger->isDebugEnabled())
-            $this->_logger->debug("invoke " . $this->_name . "#" . $method->getName()+" from " . $fromClient . " with " . $msg->getData());
-
-        if ($this->_threadPool == null)
-            $this->doInvoke($method, $fromClient, $msg);
-        else
-        {
-            throw new \Exception("fazer funcionar sem thread");
-            /*$this->_threadPool->dispatch(new Runnable()
-            {
-                public void run()
-                {
-                    $this->doInvoke(method,fromClient,msg);
-                }
-            });*/
+    public function onMessage(ServerSession $from = null, ServerChannel $channel, Mutable $message) {
+        if ($this->service->_seeOwn || $from != $this->service->getServerSession()) {
+            $this->service->{$this->method}($from, $message);
         }
-    }
-
-    /* ------------------------------------------------------------ */
-    protected function doInvoke(Method $method, ServerSession $fromClient, ServerMessage $msg)
-    {
-        $channel = msg.getChannel();
-        $data = msg.getData();
-        $id = msg.getId();
-
-        if ($method != null)
-        {
-            try
-            {
-                $parameterTypes = $method.getParameterTypes();
-                $messageParameterIndex = parameterTypes.length == 4 ? 2 : 1;
-                $messageArgument = $data;
-                if (Message::$class->isAssignableFrom($parameterTypes[$messageParameterIndex])) {
-                    $messageArgument = $msg;
-                }
-
-                $accessible = $method->isAccessible();
-                $reply = null;
-                try
-                {
-                    $method->setAccessible(true);
-                    switch ($method->getParameterTypes()->length)
-                    {
-                        case 2:
-                            $reply = $method->invoke($this, $fromClient, $messageArgument);
-                            break;
-                        case 3:
-                            $reply = $method->invoke($this, $fromClient, $messageArgument, $id);
-                            break;
-                        case 4:
-                            $reply = $method->invoke($this, $fromClient, $channel, $messageArgument, $id);
-                            break;
-                    }
-                } catch(\Exception $e) {
-                    $method->setAccessible(accessible);
-                }
-
-                if ($reply != null) {
-                    $this->send($fromClient, $channel, $reply, $id);
-                }
-            }
-            catch (\Exception $e)
-            {
-                $this->exception(method.toString(), fromClient, _session, msg, e);
-            }
-            catch (\Error $e)
-            {
-                $this->exception(method.toString(), fromClient, _session, msg, e);
-            }
-        }
+        return true;
     }
 }
