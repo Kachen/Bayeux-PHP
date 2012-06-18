@@ -78,6 +78,12 @@ interface Message //extends Map<String, Object>
     public function isMeta();
 
     /**
+     * Publish message replies contain the "successful" field
+     * @return whether this message is a publish reply (as opposed to a published message)
+     */
+    public function isPublishReply();
+
+    /**
      * Convenience method to retrieve the {@link #SUCCESSFUL_FIELD}
      * @return whether the message is successful
      */

@@ -39,31 +39,6 @@ abstract class HttpTransport extends AbstractServerTransport
     }
 
     /**
-     * @see org.cometd.bayeux.server.ServerTransport#getCurrentLocalAddress()
-     */
-    public function getCurrentLocalAddress()
-    {
-        $context = $this->getContext();
-        if ($context!=null) {
-            return $context->getLocalAddress();
-        }
-
-        return null;
-    }
-
-    /**
-     * @see org.cometd.bayeux.server.ServerTransport#getCurrentRemoteAddress()
-     */
-    public function getCurrentRemoteAddress()
-    {
-        $context = $this->getContext();
-        if ($context!=null) {
-            return $context->getRemoteAddress();
-        }
-        return null;
-    }
-
-    /**
      * @see org.cometd.bayeux.server.ServerTransport#getContext()
      */
     public function getContext() {

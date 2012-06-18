@@ -22,6 +22,7 @@ use Bayeux\Api\Message;
 class LocalSessionImpl extends AbstractClientSession implements LocalSession
 {
     private $_queue;
+    private $publishCallbacks = array();
     private $_bayeux;
     private $_idHint;
 
@@ -39,6 +40,23 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         if (Channel::META_DISCONNECT == $message->getChannel() && $message->isSuccessful()) {
             $this->_session = null;
         }
+    }
+
+    protected function notifyListeners(Message\Mutable $message)
+    {
+        if ($message->isPublishReply())
+        {
+            $messageId = $message->getId();
+            if ($messageId != null)
+            {
+                $listener = $this->publishCallbacks[$messageId];
+                unset($this->publishCallbacks[$messageId]);
+                if ($listener != null) {
+                    $this->notifyListener($listener, $message);
+                }
+            }
+        }
+        parent::notifyListeners($message);
     }
 
     /**
@@ -81,41 +99,33 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
             throw new \IllegalStateException();
         }
 
-        $message = $this->_bayeux->newMessage();
+        $session = new ServerSessionImpl($this->_bayeux, $this, $this->_idHint);
 
+        $message = $this->_bayeux->newMessage();
         if ($template != null) {
             $this->message[] = $template;
         }
         $message->setChannel(Channel::META_HANDSHAKE);
-        $message->setId($this->newMessageId());
-
-        $session = new ServerSessionImpl($this->_bayeux, $this, $this->_idHint);
 
         $this->doSend($session, $message);
 
         $reply = $message->getAssociated();
-        if ($reply != null && $reply->isSuccessful())
-        {
+        if ($reply != null && $reply->isSuccessful()) {
             $this->_session = $session;
 
             $message = $this->_bayeux->newMessage();
             $message->setChannel(Channel::META_CONNECT);
-            $message->setClientId($this->_session->getId());
-
-            $a = $message->getAdvice(true);
-            $a['asf'] = '2';
             $advice = $message->getAdvice(true);
             $advice[Message::ADVICE_FIELD] = -1;
-            $message->setId($this->newMessageId());
+            $message->setClientId($session->getId());
 
             $this->doSend($session, $message);
+
             $reply = $message->getAssociated();
-            if (!$reply->isSuccessful()) {
+            if ($reply == null || !$reply->isSuccessful()) {
                 $this->_session = null;
             }
         }
-
-        $message->setAssociated(null);
     }
 
     public function disconnect() {
@@ -123,7 +133,7 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
         {
             $message = $this->_bayeux->newMessage();
             $message->setChannel(Channel::META_DISCONNECT);
-            $message->setId($this->newMessageId());
+            $message->setClientId($this->_session->getId());
             $this->send($this->_session, $message);
             while ($this->isBatching()) {
                 $this->endBatch();
@@ -173,19 +183,25 @@ class LocalSessionImpl extends AbstractClientSession implements LocalSession
      */
     protected function doSend(ServerSessionImpl $from, ServerMessage\Mutable $message)
     {
+        $messageId = $this->newMessageId();
+        $message->setId($messageId);
+
+        // Remove the publish callback before calling the extensions
+        $callback = $message[AbstractClientSession::PUBLISH_CALLBACK_KEY];
+        unset($message[AbstractClientSession::PUBLISH_CALLBACK_KEY]);
+
         if (! $this->extendSend($message)) {
             return;
-        }
-
-        if ($this->_session != null) {
-            $message->setClientId($this->_session->getId());
         }
 
         $reply = $this->_bayeux->handle($from, $message);
         if ($reply != null)
         {
-            $reply = $this->_bayeux->extendReply($from, ($this->_session != null && $this->_session->isHandshook()) ? $this->_session : null, $reply);
+            $reply = $this->_bayeux->extendReply($from, $this->_session, $reply);
             if ($reply != null) {
+                if ($callback != null) {
+                    $this->publishCallbacks[$messageId] = $callback;
+                }
                 $this->receive($reply);
             }
         }

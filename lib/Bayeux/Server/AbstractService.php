@@ -117,12 +117,12 @@ abstract class AbstractService
 
     public function isSeeOwnPublishes()
     {
-        return _seeOwn;
+        return $this->_seeOwn;
     }
 
-    public function setSeeOwnPublishes($own)
+    public function setSeeOwnPublishes($seeOwnPublishes)
     {
-        $this->_seeOwn=$own;
+        $this->_seeOwn = $seeOwnPublishes;
     }
 
     /**

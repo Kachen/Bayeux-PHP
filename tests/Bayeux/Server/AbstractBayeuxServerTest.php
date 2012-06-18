@@ -25,7 +25,6 @@ abstract class AbstractBayeuxServerTest extends \PHPUnit_Framework_TestCase {
     }
 
     /**
-     *
      * @param \Bayeux\Http\Request $request
      * @return \Bayeux\Http\Response
      */

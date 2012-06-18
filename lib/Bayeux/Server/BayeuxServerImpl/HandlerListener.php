@@ -2,8 +2,6 @@
 
 namespace Bayeux\Server\BayeuxServerImpl;
 
-/* ------------------------------------------------------------ */
-/* ------------------------------------------------------------ */
 use Bayeux\Server\BayeuxServerImpl;
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Server\ServerSessionImpl;

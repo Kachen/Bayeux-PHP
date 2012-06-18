@@ -55,20 +55,6 @@ interface ServerTransport extends Transport
     public function isMetaConnectDeliveryOnly();
 
     /**
-     * @return the remote socket address
-     * @deprecated use {@link #getContext()} and {@link BayeuxContext#getRemoteAddress()}
-     */
-//     @Deprecated
-    public function getCurrentRemoteAddress();
-
-    /**
-     * @return the local socket address
-     * @deprecated use {@link #getContext()} and {@link BayeuxContext#getLocalAddress()}
-     */
-//     @Deprecated
-    public function getCurrentLocalAddress();
-
-    /**
      * @return The current transport context or null if no current context
      */
     public function getContext();

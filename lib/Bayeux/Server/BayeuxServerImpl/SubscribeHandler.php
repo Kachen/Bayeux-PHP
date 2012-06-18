@@ -10,7 +10,7 @@ class SubscribeHandler extends HandlerListener
 {
     public function onMessage(ServerSessionImpl $from, ServerMessage\Mutable $message)
     {
-        $reply = $this->createReply($message);
+        $reply = $message->getAssociated();
         if ($this->isSessionUnknown($from))
         {
             $this->unknownSession($reply);

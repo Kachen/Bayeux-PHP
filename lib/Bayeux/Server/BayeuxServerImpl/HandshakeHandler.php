@@ -15,8 +15,7 @@ class HandshakeHandler extends HandlerListener
             $session = $this->newServerSession();
         }
 
-        $reply = $this->createReply($message);
-
+        $reply = $message->getAssociated();
         if ($this->_policy != null && !$this->_policy->canHandshake($this->_bayeux, $session, $message))
         {
             $this->error($reply,"403::Handshake denied");
@@ -35,6 +34,6 @@ class HandshakeHandler extends HandlerListener
         $reply[Message::CLIENT_ID_FIELD] = $session->getId();
         $reply[Message::VERSION_FIELD] = "1.0";
         $reply[Message::MIN_VERSION_FIELD] = "1.0";
-        $reply[Message::SUPPORTED_CONNECTION_TYPES_FIELD]  = $this->getAllowedTransports();
+        $reply[Message::SUPPORTED_CONNECTION_TYPES_FIELD] = $this->getAllowedTransports();
     }
 }

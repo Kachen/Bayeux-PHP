@@ -2,6 +2,10 @@
 
 namespace Bayeux\Server\LocalSessionImpl;
 
+use Bayeux\Common\AbstractClientSession;
+
+use Bayeux\Api\Client\ClientSessionChannel\MessageListener;
+
 use Bayeux\Api\ChannelId;
 use Bayeux\Server\BayeuxServerImpl;
 use Bayeux\Server\LocalSessionImpl;
@@ -20,61 +24,44 @@ class LocalChannel extends AbstractSessionChannel
         parent::__construct($id);
     }
 
-    /* ------------------------------------------------------------ */
     public function getSession()
     {
         return $this->_localSession;
     }
 
-
-    /* ------------------------------------------------------------ */
-    public function publish($data, $messageId = null)
+    public function publish($data, MessageListener $listener = null)
     {
         $this->throwIfReleased();
-        if ($this->_session == null) {
-            throw new \IllegalStateException("!handshake");
-        }
-
         $message = $this->_bayeux->newMessage();
         $message->setChannel($this->getId());
         $message->setData($data);
-        if ($messageId != null) {
-            $message->setId($messageId);
+        $message->setClientId($this->_localSession->getId());
+        if ($listener != null) {
+            $message[AbstractClientSession::PUBLISH_CALLBACK_KEY] = $listener;
         }
-
         $this->_localSession->send($this->_session, $message);
-        $message->setAssociated(null);
     }
 
-    /* ------------------------------------------------------------ */
-//     @Override
-    public function toString()
-    {
-        return parent::toString() . "@" . LocalSessionImpl.this.toString();
-    }
-
-//     @Override
     protected function sendSubscribe()
     {
         $message = $this->_bayeux->newMessage();
         $message->setChannel(Channel::META_SUBSCRIBE);
         $message[Message::SUBSCRIPTION_FIELD] =  $this->getId();
         $message->setClientId($this->_localSession->getId());
-        $message->setId($this->_localSession->newMessageId());
-
         $this->_localSession->send($this->_session, $message);
-        $message->setAssociated(null);
     }
 
-//     @Override
     protected function sendUnSubscribe()
     {
         $message = $this->_bayeux->newMessage();
         $message->setChannel(Channel::META_UNSUBSCRIBE);
         $message[Message::SUBSCRIPTION_FIELD] = $this->getId();
-        $message->setId($this->_localSession->newMessageId());
-
+        $message->setClientId($this->_localSession->getId());
         $this->_localSession->send($this->_session, $message);
-        $message->setAssociated(null);
+    }
+
+    public function toString()
+    {
+        return parent::toString() . "@" . $this->_localSession->toString();
     }
 }

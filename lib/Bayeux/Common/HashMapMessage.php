@@ -119,6 +119,11 @@ class HashMapMessage extends \ArrayObject implements Message\Mutable
         return ChannelId::staticIsMeta($this->getChannel());
     }
 
+    public function isPublishReply()
+    {
+        return ! $this->isMeta() && $this->containsKey(Message::SUCCESSFUL_FIELD);
+    }
+
     public function isSuccessful()
     {
         if (isset($this[Message::SUCCESSFUL_FIELD])) {

@@ -7,12 +7,11 @@ use Bayeux\Api\Message;
 use Bayeux\Api\Server\ServerMessage;
 use Bayeux\Server\ServerSessionImpl;
 
-
 class UnsubscribeHandler extends HandlerListener
 {
     public function onMessage(ServerSessionImpl $from, ServerMessage\Mutable $message)
     {
-        $reply = $this->createReply($message);
+        $reply = $message->getAssociated();
         if ($this->isSessionUnknown($from))
         {
             $this->unknownSession($reply);

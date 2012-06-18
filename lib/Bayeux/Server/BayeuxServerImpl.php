@@ -101,13 +101,11 @@ class BayeuxServerImpl implements BayeuxServer
         $this->_logLevel = self::OFF_LOG_LEVEL;
 
         $logLevelValue = $this->getOption(self::LOG_LEVEL);
-        if ($logLevelValue != null)
-        {
+        if ($logLevelValue != null) {
             $this->_logLevel = intval($logLevelValue);
         }
 
-        if ($this->_logLevel >= self::CONFIG_LOG_LEVEL)
-        {
+        if ($this->_logLevel >= self::CONFIG_LOG_LEVEL) {
             throw new \Exception('debug');
             //for (Map.Entry<String, Object> entry : getOptions().entrySet())
             //    getLogger().info(entry.getKey() + "=" + entry.getValue());
@@ -194,12 +192,9 @@ class BayeuxServerImpl implements BayeuxServer
     protected function initializeJSONContext()
     {
         $option = $this->getOption(self::JSON_CONTEXT);
-        if ($option == null)
-        {
+        if ($option == null) {
             $this->_jsonContext = new PHPJSONContextServer();
-        }
-        else
-        {
+        } else {
             /*
             if ($option instanceof String)
             {
@@ -232,10 +227,8 @@ class BayeuxServerImpl implements BayeuxServer
      * <p>This method creates  a {@link JSONTransport} and a {@link JSONPTransport}.
      * If no allowed transport have been set then adds all known transports as allowed transports.
      */
-    protected function initializeDefaultTransports()
-    {
-        if (empty($this->_allowedTransports))
-        {
+    protected function initializeDefaultTransports() {
+        if (empty($this->_allowedTransports)) {
             foreach ($this->_transports as $t) {
                 $this->_allowedTransports[] = $t->getName();
             }
@@ -244,20 +237,17 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    public function startTimeout(Timeout\Task $task, $interval)
-    {
+    public function startTimeout(Timeout\Task $task, $interval) {
         $this->_timeout->schedule($task, $interval);
     }
 
 
-    public function cancelTimeout(Timeout\Task $task)
-    {
+    public function cancelTimeout(Timeout\Task $task) {
         $task->cancel();
     }
 
 
-    public function newChannelId($id)
-    {
+    public function newChannelId($id) {
         if (isset($this->_channels[$id])) {
             return $this->_channels[$id]->getChannelId();
         } else {
@@ -275,8 +265,7 @@ class BayeuxServerImpl implements BayeuxServer
      * @param dft The default value
      * @return long value
      */
-    public function getOption($name, $dft = null)
-    {
+    public function getOption($name, $dft = null) {
         if (! isset($this->_options[$name])) {
             return $dft;
         }
@@ -296,8 +285,7 @@ class BayeuxServerImpl implements BayeuxServer
     /**
      * @see org.cometd.bayeux.Bayeux#setOption(java.lang.String, java.lang.Object)
      */
-    public function setOption($qualifiedName, $value)
-    {
+    public function setOption($qualifiedName, $value) {
         $this->_options[$qualifiedName] = $value;
     }
 
@@ -306,46 +294,39 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    public function randomLong()
-    {
+    public function randomLong() {
         return uniqid();
     }
 
 
-    public function setCurrentTransport(AbstractServerTransport $transport = null)
-    {
+    public function setCurrentTransport(AbstractServerTransport $transport = null) {
         $this->_currentTransport = $transport;
     }
 
 
-    public function getCurrentTransport()
-    {
+    public function getCurrentTransport() {
         return $this->_currentTransport;
     }
 
 
-    public function getContext()
-    {
+    public function getContext() {
         $transport = $this->_currentTransport;
         return $transport == null ? null : $transport->getContext();
     }
 
 
-    public function getSecurityPolicy()
-    {
+    public function getSecurityPolicy() {
         return $this->_policy;
     }
 
-    public function createIfAbsent($channelName)
-    {
+    public function createIfAbsent($channelName) {
         $initializers = func_get_args();
         array_shift($initializers);
         $this->createChannelIfAbsent($channelName, $initializers);
         return true;
     }
 
-    private function createChannelIfAbsent($channelName, array $initializers = array())
-    {
+    private function createChannelIfAbsent($channelName, array $initializers = array()) {
         $initialized = false;
         if (empty($this-> _channels[$channelName])) {
             $channel = null;
@@ -353,13 +334,11 @@ class BayeuxServerImpl implements BayeuxServer
             $channel = $this-> _channels[$channelName];
         }
 
-        if ($channel === null)
-        {
+        if ($channel === null) {
             $channelId = new ChannelId($channelName);
             // Be sure the parent is there
             $parentChannel = null;
-            if ($channelId->depth() > 1)
-            {
+            if ($channelId->depth() > 1) {
                 $parentName = $channelId->getParent();
                 // If the parent needs to be re-created, we are missing its initializers,
                 // but there is nothing we can do: in this case, the application needs
@@ -375,34 +354,29 @@ class BayeuxServerImpl implements BayeuxServer
                 $channel = $this->_channels[$channelName];
             }
 
-            if ($channel === null)
-            {
+            if ($channel === null) {
                 // My candidate channel was added to the map, so I'd better initialize it
 
                 $channel = $candidate;
                 $this->debug("Added channel {}", $channel);
 
-                try
-                {
+                try {
                     foreach ($initializers as $initializer) {
                         $this->notifyConfigureChannel($initializer, $channel);
                     }
 
-                    foreach ($this->_listeners as $listener)
-                    {
+                    foreach ($this->_listeners as $listener) {
                         if ($listener instanceof ServerChannel\Initializer) {
                             $this->notifyConfigureChannel($listener, $channel);
                         }
                     }
-                }
-                catch (\Exception $e)
-                {
+
+                } catch (\Exception $e) {
                     throw $e;
                     $channel->initialized();
                 }
 
-                foreach ($this->_listeners as $listener)
-                {
+                foreach ($this->_listeners as $listener) {
                     if ($listener instanceof BayeuxServer\ChannelListener) {
                         $this->notifyChannelAdded($listener, $channel);
                     }
@@ -410,9 +384,8 @@ class BayeuxServerImpl implements BayeuxServer
 
                 $initialized = true;
             }
-        }
-        else
-        {
+
+        } else {
             $channel->resetSweeperPasses();
             // Double check if the sweeper removed this channel between the check at the top and here.
             // This is not 100% fool proof (e.g. this thread is preempted long enough for the sweeper
@@ -426,40 +399,29 @@ class BayeuxServerImpl implements BayeuxServer
         return $channel;
     }
 
-    private function notifyConfigureChannel(ConfigurableServerChannel\Initializer $listener, ServerChannel $channel)
-    {
-        try
-        {
+    private function notifyConfigureChannel(ConfigurableServerChannel\Initializer $listener, ServerChannel $channel) {
+        try {
             $listener->configureChannel($channel);
-        }
-        catch (\Exception $x)
-        {
+
+        } catch (\Exception $x) {
             throw $x;
             _logger.info("Exception while invoking listener " + listener, x);
         }
     }
 
-    private function notifyChannelAdded(ChannelListener $listener, ServerChannel $channel)
-    {
-        try
-        {
+    private function notifyChannelAdded(ChannelListener $listener, ServerChannel $channel) {
+        try {
             $listener->channelAdded($channel);
-        }
-        catch (\Exception $x)
-        {
+        } catch (\Exception $x) {
             _logger.info("Exception while invoking listener " + listener, x);
         }
     }
 
-
-    public function getSessions()
-    {
+    public function getSessions() {
         return $this->_sessions;
     }
 
-
-    public function getSession($clientId)
-    {
+    public function getSession($clientId) {
         if ($clientId == null) {
             return null;
         }
@@ -469,26 +431,21 @@ class BayeuxServerImpl implements BayeuxServer
         return $this->_sessions[$clientId];
     }
 
-
-    public function addServerSession(ServerSessionImpl $session)
-    {
+    public function addServerSession(ServerSessionImpl $session) {
         $this->_sessions[$session->getId()] = $session;
-        foreach ($this->_listeners as $listener)
-        {
+        foreach ($this->_listeners as $listener) {
             if ($listener instanceof BayeuxServer\SessionListener) {
                 $listener->sessionAdded($session);
             }
         }
     }
 
-
     /**
      * @param session
      * @param timedout
      * @return true if the session was removed and was connected
      */
-    public function removeServerSession(ServerSession $session, $timedout)
-    {
+    public function removeServerSession(ServerSession $session, $timedout) {
         //if ($this->_logger->isDebugEnabled()) {
         //    $this->_logger->debug("remove " . $session . ($timedout ? " timedout" : ""));
         //}
@@ -499,10 +456,8 @@ class BayeuxServerImpl implements BayeuxServer
             unset($this->_sessions[$session->getId()]);
         }
 
-        if ($removed == $session)
-        {
-            foreach ($this->_listeners as $listener)
-            {
+        if ($removed == $session) {
+            foreach ($this->_listeners as $listener) {
                 if ($listener instanceof BayeuxServer\SessionListener) {
                     $this->notifySessionRemoved($listener, $session, $timedout);
                 }
@@ -514,44 +469,34 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    private function notifySessionRemoved(SessionListener $listener, ServerSession $session, $timedout)
-    {
-        try
-        {
+    private function notifySessionRemoved(SessionListener $listener, ServerSession $session, $timedout) {
+        try {
             $listener->sessionRemoved($session, $timedout);
-        }
-        catch (\Exception $x)
-        {
+
+        } catch (\Exception $x) {
             _logger.info("Exception while invoking listener " + listener, x);
         }
     }
 
     /**
-     *
-     * Enter description here ...
      * @param LocalSessionImpl $local
      * @param unknown_type $idHint
      * @return \Bayeux\Server\ServerSessionImpl
      */
-    public function newServerSession(LocalSessionImpl $local = null, $idHint = null)
-    {
+    public function newServerSession(LocalSessionImpl $local = null, $idHint = null) {
         return new ServerSessionImpl($this, $local, $idHint);
     }
 
-
-    public function newLocalSession($idHint)
-    {
+    public function newLocalSession($idHint) {
         return new LocalSessionImpl($this, $idHint);
     }
-
 
     /**
      * (non-PHPdoc)
      * @see Bayeux\Api\Server.BayeuxServer::newMessage()
      * return Message
      */
-    public function newMessage(ServerMessage $tocopy = null)
-    {
+    public function newMessage(ServerMessage $tocopy = null) {
         if ($tocopy === null) {
             return new ServerMessageImpl();
         }
@@ -563,40 +508,30 @@ class BayeuxServerImpl implements BayeuxServer
         return $mutable;
     }
 
-
-    public function setSecurityPolicy(SecurityPolicy $securityPolicy)
-    {
-        $this->_policy=$securityPolicy;
+    public function setSecurityPolicy(SecurityPolicy $securityPolicy) {
+        $this->_policy = $securityPolicy;
     }
 
-
-    public function addExtension(Extension $extension)
-    {
+    public function addExtension(Extension $extension) {
         $this->_extensions[] = $extension;
     }
 
-
-    public function removeExtension(Extension $extension)
-    {
+    public function removeExtension(Extension $extension) {
         $key = array_search(extension, $this->_extensions);
         if ($key !== false) {
             unset($this->_extensions[$key]);
         }
     }
 
-
-    public function addListener(BayeuxServerListener $listener)
-    {
+    public function addListener(BayeuxServerListener $listener) {
         $this->_listeners[] = $listener;
     }
-
 
     /**
      * (non-PHPdoc)
      * @see Bayeux\Api\Server.BayeuxServer::getChannel()
      */
-    public function getChannel($channelId)
-    {
+    public function getChannel($channelId) {
         if (isset($this->_channels[$channelId])) {
             return $this->_channels[$channelId];
         }
@@ -604,35 +539,16 @@ class BayeuxServerImpl implements BayeuxServer
         return null;
     }
 
-
-    public function getChannels()
-    {
+    public function getChannels() {
         return $this->_channels;
     }
 
-
-    public function getChannelChildren(ChannelId $id)
-    {
-        $children = array();
-        foreach ($this->_channels as $channel)
-        {
-            if ($id->isParentOf($channel->getChannelId())) {
-                $children[] = $channel;
-            }
-        }
-        return $children;
-    }
-
-
-    public function removeListener(BayeuxServerListener $listener)
-    {
+    public function removeListener(BayeuxServerListener $listener) {
         $key = array_search($listener, $this->_listeners);
         if ($key !== false) {
             unset($this->_listeners[$key]);
         }
     }
-
-
     /** Extend and handle in incoming message.
      * @param session The session if known
      * @param message The message.
@@ -643,13 +559,11 @@ class BayeuxServerImpl implements BayeuxServer
             $this->_logger.debug(">  " + message + " " + session);
         } */
 
-        $reply = null;
+        $reply = $this->createReply($message);
         if (! $this->extendRecv($session, $message)
             || $session != null
                 && ! $session->extendRecv($message)) {
-            $reply = $this->createReply($message);
             $this->error($reply, "404::message deleted");
-
         } else {
 
             /* if ($this->_logger->isDebugEnabled()) {
@@ -658,9 +572,7 @@ class BayeuxServerImpl implements BayeuxServer
 
             $channelName = $message->getChannel();
             $channel = null;
-            if ($channelName == null)
-            {
-                $reply = $this->createReply($message);
+            if ($channelName == null) {
                 $this->error($reply, "400::channel missing");
 
             } else {
@@ -669,7 +581,6 @@ class BayeuxServerImpl implements BayeuxServer
                     $creationResult = $this->isCreationAuthorized($session, $message, $channelName);
                     if ($creationResult instanceof Authorizer\Result\Denied)
                     {
-                        $reply = $this->createReply($message);
                         $denyReason = $creationResult->getReason();
                         $this->error($reply, "403:" . $denyReason . ":create denied");
                     }
@@ -680,42 +591,23 @@ class BayeuxServerImpl implements BayeuxServer
                     }
                 }
 
-                if ($channel != null)
-                {
-                    if ($channel->isMeta())
-                    {
-
-                        if ($session == null && ! (Channel::META_HANDSHAKE == $channelName))
-                        {
-                            $reply = $this->createReply($message);
+                if ($channel != null) {
+                    if ($channel->isMeta()) {
+                        if ($session == null && ! (Channel::META_HANDSHAKE == $channelName)) {
                             $this->unknownSession($reply);
-                        }
-                        else
-                        {
+                        } else {
                             $this->doPublish($session, $channel, $message);
-                            $reply = $message->getAssociated();
                         }
-                    }
-                    else
-                    {
-                        if ($session == null)
-                        {
-                            $reply = $this->createReply($message);
+                    } else {
+                        if ($session == null) {
                             $this->unknownSession($reply);
-                        }
-                        else
-                        {
+                        } else {
                             $publishResult = $this->isPublishAuthorized($channel, $session, $message);
-                            if ($publishResult instanceof Authorizer\Result\Denied)
-                            {
-                                $reply = $this->createReply($message);
+                            if ($publishResult instanceof Authorizer\Result\Denied) {
                                 $denyReason = $publishResult->getReason();
                                 $this->error($reply, "403:" . $denyReason . ":publish denied");
-                            }
-                            else
-                            {
+                            } else {
                                 $channel->publish($session, $message);
-                                $reply = $this->createReply($message);
                                 $reply->setSuccessful(true);
                             }
                         }
@@ -732,30 +624,24 @@ class BayeuxServerImpl implements BayeuxServer
         return $reply;
     }
 
-    public function isPublishAuthorized(ServerChannel $channel, ServerSession $session, ServerMessage $message)
-    {
-        if ($this->_policy != null && !$this->_policy->canPublish($this, $session, $channel, $message))
-        {
+    public function isPublishAuthorized(ServerChannel $channel, ServerSession $session, ServerMessage $message) {
+        if ($this->_policy != null && !$this->_policy->canPublish($this, $session, $channel, $message)) {
             //$this->_logger->warn("{} denied Publish@{} by {}", $session, $channel->getId(), $this->_policy);
             return Authorizer\Result::deny("denied_by_security_policy");
         }
         return $this->isOperationAuthorized(Authorizer\Operation::PUBLISH, $session, $message, $channel->getChannelId());
     }
 
-    public function isSubscribeAuthorized(ServerChannel $channel, ServerSession $session, ServerMessage $message)
-    {
-        if ($this->_policy != null && !$this->_policy->canSubscribe($this, $session, $channel, $message))
-        {
+    public function isSubscribeAuthorized(ServerChannel $channel, ServerSession $session, ServerMessage $message) {
+        if ($this->_policy != null && !$this->_policy->canSubscribe($this, $session, $channel, $message)) {
             //$this->_logger->warn("{} denied Publish@{} by {}", $session, $channel, $this->_policy);
             return Authorizer\Result::deny("denied_by_security_policy");
         }
         return $this->isOperationAuthorized(Authorizer\Operation::SUBSCRIBE, $session, $message, $channel->getChannelId());
     }
 
-    public function isCreationAuthorized(ServerSession $session, ServerMessage $message, $channel)
-    {
-        if ($this->_policy != null && !$this->_policy->canCreate($this, $session, $channel, $message))
-        {
+    public function isCreationAuthorized(ServerSession $session, ServerMessage $message, $channel) {
+        if ($this->_policy != null && !$this->_policy->canCreate($this, $session, $channel, $message)) {
             //$this->_logger->warn("{} denied Create@{} by {}", $session, $message->getChannel(), $this->_policy);
             return Authorizer\Result::deny("denied_by_security_policy");
         }
@@ -776,39 +662,28 @@ class BayeuxServerImpl implements BayeuxServer
 
         $called = false;
         $result = Authorizer\Result::ignore();
-        foreach ($channels as $channel)
-        {
-            foreach ($channel->getAuthorizers() as $authorizer)
-            {
+        foreach ($channels as $channel) {
+            foreach ($channel->getAuthorizers() as $authorizer) {
                 $called = true;
                 $authorization = $authorizer->authorize($operation, $channelId, $session, $message);
                 $this->_logger->debug("Authorizer {} on channel {} {} {} for channel {}", $authorizer, $channel, $authorization, $operation, $channelId);
-                if ($authorization instanceof Authorizer\Result\Denied)
-                {
+                if ($authorization instanceof Authorizer\Result\Denied) {
                     $result = $authorization;
                     break;
-                }
-                else if ($authorization instanceof Authorizer\Result\Granted)
-                {
+                } else if ($authorization instanceof Authorizer\Result\Granted) {
                     $result = $authorization;
                 }
             }
         }
 
-        if (!$called)
-        {
+        if (!$called) {
             $result = Authorizer\Result::grant();
             //$this->_logger->debug("No authorizers, {} for channel {} {}", $operation, $channelId, $result);
-        }
-        else
-        {
-            if ($result instanceof Authorizer\Result\Ignored)
-            {
+        } else {
+            if ($result instanceof Authorizer\Result\Ignored) {
                 $result = Authorizer\Result::deny("denied_by_not_granting");
                 //$this->_logger->debug("No authorizer granted {} for channel {}, authorization {}", operation, channelId, result);
-            }
-            else if ($result instanceof Authorizer\Result\Granted)
-            {
+            } else if ($result instanceof Authorizer\Result\Granted) {
                 //$this->_logger->debug("No authorizer denied {} for channel {}, authorization {}", $operation, $channelId, $result);
             }
         }
@@ -820,12 +695,10 @@ class BayeuxServerImpl implements BayeuxServer
     }
 
 
-    public function doPublish(ServerSessionImpl $from = null, ServerChannelImpl $to, ServerMessage\Mutable $mutable)
-    {
+    public function doPublish(ServerSessionImpl $from = null, ServerChannelImpl $to, ServerMessage\Mutable $mutable) {
         // check the parent channels
         $parent = $to->getChannelId()->getParent();
-        while ($parent != null)
-        {
+        while ($parent != null) {
             if (! isset($this->_channels[$parent])) {
                 return; // remove in progress
             }
@@ -849,8 +722,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
 
         // Call the wild listeners
-        foreach ($wild_channels as $channel)
-        {
+        foreach ($wild_channels as $channel) {
             if ($channel == null) {
                 continue;
             }
@@ -893,16 +765,14 @@ class BayeuxServerImpl implements BayeuxServer
         $this->freeze($mutable);
 
         // Call the wild subscribers
-        $wild_subscribers=null;
+        $wild_subscribers = null;
         if (ChannelId::staticIsBroadcast($mutable->getChannel())) {
-            foreach ($wild_channels as $channel)
-            {
+            foreach ($wild_channels as $channel) {
                 if ($channel == null) {
                     continue;
                 }
 
-                foreach ($channel->getSubscribers() as $session )
-                {
+                foreach ($channel->getSubscribers() as $session ) {
                     if ($wild_subscribers==null) {
                         $wild_subscribers = array();
                     }
@@ -916,16 +786,14 @@ class BayeuxServerImpl implements BayeuxServer
         }
 
         // Call the leaf subscribers
-        foreach ($to->getSubscribers() as $session)
-        {
+        foreach ($to->getSubscribers() as $session) {
             if ($wild_subscribers == null || ! in_array($session->getId(), $wild_subscribers)) {
                 $session->doDeliver($from, $mutable);
             }
         }
 
         // Meta handlers
-        if ($to->isMeta())
-        {
+        if ($to->isMeta()) {
             foreach ($to->getListeners() as $listener) {
                 if ($listener instanceof BayeuxServerImpl\HandlerListener) {
                     $listener->onMessage($from, $mutable);
@@ -934,8 +802,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-    public function freeze(ServerMessage\Mutable $message)
-    {
+    public function freeze(ServerMessage\Mutable $message) {
         if ($message->isFrozen()) {
             return;
         }
@@ -943,14 +810,11 @@ class BayeuxServerImpl implements BayeuxServer
         $message->freeze($json);
     }
 
-    private function notifyOnMessage(ServerChannel\MessageListener $listener, ServerSession $from = null, ServerChannel $to, ServerMessage\Mutable $mutable)
-    {
-        try
-        {
+    private function notifyOnMessage(ServerChannel\MessageListener $listener, ServerSession $from = null, ServerChannel $to, ServerMessage\Mutable $mutable) {
+        try {
             return $listener->onMessage($from, $to, $mutable);
-        }
-        catch (\Exception $x)
-        {
+
+        } catch (\Exception $x) {
             throw $x;
             echo "Exception while invoking listener " . $listener . $x;
             //_logger.info("Exception while invoking listener " + listener, x);
@@ -958,31 +822,23 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-
-
-    public function extendReply(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $reply)
-    {
+    public function extendReply(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $reply) {
         if (!$this->extendSend($from, $to, $reply)) {
             return null;
         }
 
-        if ($to != null)
-        {
-            if ($reply->isMeta())
-            {
+        if ($to != null) {
+            if ($reply->isMeta()) {
                 if(!$to->extendSendMeta($reply)) {
                     return null;
                 }
-            }
-            else
-            {
+
+            } else {
                 $newReply = $to->extendSendMessage($reply);
-                if ($newReply == null)
-                {
+                if ($newReply == null) {
                     $reply = null;
-                }
-                else if ($newReply != $reply)
-                {
+
+                } else if ($newReply != $reply) {
                     if ($newReply instanceof ServerMessage\Mutable) {
                         $reply = $newReply;
                     } else {
@@ -994,7 +850,6 @@ class BayeuxServerImpl implements BayeuxServer
 
         return $reply;
     }
-
 
     protected function extendRecv(ServerSessionImpl $from = null, ServerMessage\Mutable $message) {
         if ($message->isMeta()) {
@@ -1014,16 +869,11 @@ class BayeuxServerImpl implements BayeuxServer
         return true;
     }
 
-
-    public function extendSend(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $message)
-    {
-        if ($message->isMeta())
-        {
+    public function extendSend(ServerSessionImpl $from, ServerSessionImpl $to = null, ServerMessage\Mutable $message) {
+        if ($message->isMeta()) {
             $i = new \ArrayIterator(array_reverse($this->_extensions, true));
-            while($i->valid())
-            {
-                if (! $i->current()->sendMeta($to, $message))
-                {
+            while($i->valid()) {
+                if (! $i->current()->sendMeta($to, $message)) {
                     /*if ($this->_logger->isDebugEnabled()) {
                         $this->_logger->debug("!  " . $message);
                     }*/
@@ -1031,14 +881,11 @@ class BayeuxServerImpl implements BayeuxServer
                 }
                 $i->next();
             }
-        }
-        else
-        {
+
+        } else {
             $i = new \ArrayIterator(array_reverse($this->_extensions, true));
-            while($i->valid())
-            {
-                if (! $i->current()->send($from, $to, $message))
-                {
+            while($i->valid()) {
+                if (! $i->current()->send($from, $to, $message)) {
                     /*if ($this->_logger->isDebugEnabled()) {
                         $this->_logger->debug("!  " . $message);
                     }*/
@@ -1055,9 +902,7 @@ class BayeuxServerImpl implements BayeuxServer
         return true;
     }
 
-
-    public function removeServerChannel(ServerChannelImpl $channel)
-    {
+    public function removeServerChannel(ServerChannelImpl $channel) {
         if (empty($this->_channels[$channel->getId()])) {
             return false;
         }
@@ -1068,64 +913,52 @@ class BayeuxServerImpl implements BayeuxServer
 
         unset($this->_channels[$channel->getId()]);
         //if($this->_channels->remove($channel->getId(), $channel))
-        if (empty($this->_channels[$channel->getId()]))
-        {
+        if (empty($this->_channels[$channel->getId()])) {
             //$this->_logger->debug("removed {}", $channel);
-            foreach ($this->_listeners as $listener)
-            {
+            foreach ($this->_listeners as $listener) {
                 if ($listener instanceof BayeuxServer\ChannelListener) {
                     $listener->channelRemoved($channel->getId());
                 }
             }
+
             return true;
         }
+
         return false;
     }
 
-
-    public function getListeners()
-    {
+    public function getListeners() {
         return $this->_listeners;
     }
 
-
-    public function getKnownTransportNames()
-    {
+    public function getKnownTransportNames() {
         return array_keys($this->_transports);
     }
 
-
-    public function getTransport($transport)
-    {
+    public function getTransport($transport) {
         return $this->_transports[$transport];
     }
 
-
-
-
-    public function addTransport(ServerTransport $transport)
-    {
+    public function addTransport(ServerTransport $transport) {
         $this->_transports[$transport->getName()] = $transport;
     }
 
-
-    public function setTransports(array $transports)
-    {
+    public function setTransports(array $transports) {
         $this->_transports = array();
         foreach ($transports as $transport) {
             $this->addTransport($transport);
         }
     }
 
+    public function getTransports() {
+        return $this->_transports;
+    }
 
-    public function getAllowedTransports()
-    {
+    public function getAllowedTransports() {
         return $this->_allowedTransports;
     }
 
-
-    public function setAllowedTransports(array $allowed)
-    {
+    public function setAllowedTransports(array $allowed) {
         $this->_allowedTransports = array();
         foreach ($allowed as $transport)
         {
@@ -1135,25 +968,19 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-
-    protected function unknownSession(Servermessage\Mutable $reply)
-    {
+    protected function unknownSession(Servermessage\Mutable $reply) {
         $this->error($reply,"402::Unknown client");
         if (Channel::META_HANDSHAKE == $reply->getChannel() || Channel::META_CONNECT == $reply->getChannel()) {
             $reply[Message::ADVICE_FIELD] =  $this->_handshakeAdvice;
         }
     }
 
-
-    protected function error(ServerMessage\Mutable $reply, $error)
-    {
+    protected function error(ServerMessage\Mutable $reply, $error) {
         $reply[Message::ERROR_FIELD] = $error;
         $reply->setSuccessful(false);
     }
 
-
-    public function createReply(ServerMessage\Mutable $message)
-    {
+    public function createReply(ServerMessage\Mutable $message) {
         $reply = $this->newMessage();
         $message->setAssociated($reply);
         $reply->setAssociated($message);
@@ -1166,15 +993,12 @@ class BayeuxServerImpl implements BayeuxServer
         return $reply;
     }
 
-
-    public function sweep()
-    {
+    public function sweep() {
         foreach ($this->_channels as $channel) {
             $channel->sweep();
         }
 
-        foreach ($this->_transports as $transport)
-        {
+        foreach ($this->_transports as $transport) {
             if ($transport instanceof AbstractServerTransport) {
                 $transport->sweep();
             }
@@ -1186,9 +1010,7 @@ class BayeuxServerImpl implements BayeuxServer
         }
     }
 
-
-    public function dump()
-    {
+    public function dump() {
         $b = '';
 
         $children = array();
@@ -1196,17 +1018,15 @@ class BayeuxServerImpl implements BayeuxServer
             $children[] = $this->_policy;
         }
 
-        foreach ($this->_channels as $channel)
-        {
+        foreach ($this->_channels as $channel) {
             if ($channel.getChannelId()->depth()==1) {
                 $children[] = $channel;
             }
         }
 
-        $leaves=count($children);
-        $i=0;
-        foreach ($children as $child)
-        {
+        $leaves = count($children);
+        $i = 0;
+        foreach ($children as $child) {
             $b .= " +-";
             if ($child instanceof ServerChannelImpl) {
                 throw new \Exception("Verificar o return");
@@ -1216,6 +1036,6 @@ class BayeuxServerImpl implements BayeuxServer
             }
         }
 
-        return b.toString();
+        return $b;
     }
 }

@@ -17,6 +17,7 @@ use Bayeux\Api\Message;
 abstract class AbstractClientSession implements ClientSession
 {
     //protected static $logger;
+    const PUBLISH_CALLBACK_KEY = "org.cometd.client.publishCallback";
     private $_idGen = 0;
     private $_extensions = array();
     private $_attributes = array();
@@ -24,30 +25,29 @@ abstract class AbstractClientSession implements ClientSession
     private $_batch = 0;
 
 
-    /* ------------------------------------------------------------ */
     protected function __construct()
     {
     }
 
-    /* ------------------------------------------------------------ */
     public function newMessageId()
     {
         return ++$this->_idGen;
     }
 
-    /* ------------------------------------------------------------ */
     public function addExtension(Extension $extension)
     {
         $this->_extensions[] = $extension;
     }
 
-    /* ------------------------------------------------------------ */
     public function removeExtension(Extension $extension)
     {
         $this->_extensions.remove(extension);
     }
 
-    /* ------------------------------------------------------------ */
+    public function getExtensions() {
+        return $this->_extensions;
+    }
+
     protected function extendSend(Message\Mutable $message)
     {
         if ($message->isMeta())
@@ -69,7 +69,6 @@ abstract class AbstractClientSession implements ClientSession
         return true;
     }
 
-    /* ------------------------------------------------------------ */
     protected function extendRcv(Message\Mutable $message)
     {
         if ($message->isMeta())
@@ -93,10 +92,8 @@ abstract class AbstractClientSession implements ClientSession
 
     protected abstract function newChannelId($channelId);
 
-    /* ------------------------------------------------------------ */
     protected abstract function newChannel(ChannelId $channelId = null);
 
-    /* ------------------------------------------------------------ */
     public function getChannel($channelId)
     {
         if (isset($this->_channels[$channelId])) {
@@ -120,7 +117,6 @@ abstract class AbstractClientSession implements ClientSession
         return $channel;
     }
 
-    /* ------------------------------------------------------------ */
     public function getChannels()
     {
         $channels = &$this->_channels;
@@ -140,16 +136,13 @@ abstract class AbstractClientSession implements ClientSession
         return false;
     }
 
-    /* ------------------------------------------------------------ */
     public function startBatch()
     {
         ++$this->_batch;
     }
 
-    /* ------------------------------------------------------------ */
     protected abstract function sendBatch();
 
-    /* ------------------------------------------------------------ */
     public function endBatch()
     {
         if (--$this->_batch == 0)
@@ -160,7 +153,6 @@ abstract class AbstractClientSession implements ClientSession
         return false;
     }
 
-    /* ------------------------------------------------------------ */
     public function batch($batch = true)
     {
         $this->startBatch();
@@ -174,13 +166,11 @@ abstract class AbstractClientSession implements ClientSession
         }
     }
 
-    /* ------------------------------------------------------------ */
     protected function isBatching()
     {
         return $this->_batch > 0;
     }
 
-    /* ------------------------------------------------------------ */
     public function getAttribute($name)
     {
         if (isset($this->_attributes[$name])) {
@@ -189,13 +179,11 @@ abstract class AbstractClientSession implements ClientSession
         return null;
     }
 
-    /* ------------------------------------------------------------ */
     public function getAttributeNames()
     {
         return array_keys($this->_attributes);
     }
 
-    /* ------------------------------------------------------------ */
     public function removeAttribute($name)
     {
         if (! isset($this->_attributes[$name])) {
@@ -207,13 +195,11 @@ abstract class AbstractClientSession implements ClientSession
         return $old;
     }
 
-    /* ------------------------------------------------------------ */
     public function setAttribute($name, $value)
     {
         $this->_attributes[$name] = $value;
     }
 
-    /* ------------------------------------------------------------ */
     protected function resetSubscriptions()
     {
         foreach ($this->_channels as $ch) {
@@ -221,7 +207,6 @@ abstract class AbstractClientSession implements ClientSession
         }
     }
 
-    /* ------------------------------------------------------------ */
     /**
      * <p>Receives a message (from the server) and process it.</p>
      * <p>Processing the message involves calling the receive {@link Extension extensions}
@@ -229,10 +214,8 @@ abstract class AbstractClientSession implements ClientSession
      * @param message the message received.
      * @param mutable the mutable version of the message received
      */
-    public function receive(Message\Mutable $message)
-    {
-        $id = $message->getChannel();
-        if ($id == null) {
+    public function receive(Message\Mutable $message) {
+        if ($message->getChannel() == null) {
             throw new \Exception("Bayeux messages must have a channel, " . $message);
         }
 
@@ -240,22 +223,34 @@ abstract class AbstractClientSession implements ClientSession
             return;
         }
 
-        $channelRef = $this->getReleasableChannel($id);
+        $this->notifyListeners($message);
+    }
+
+    protected function notifyListeners(Message\Mutable $message)
+    {
+        $channelRef = $this->getReleasableChannel($message->getChannel());
         $channel = $channelRef->getReference();
         $channel->notifyMessageListeners($message);
         if ($channelRef->isMarked()) {
             $channel->release();
         }
 
-        $channelId = $channel->getChannelId();
-        foreach ($channelId->getWilds() as $wildChannelName )
-        {
+        foreach ($channel->getChannelId() as $wildChannelName) {
             $wildChannelRef = $this->getReleasableChannel($wildChannelName);
             $wildChannel = $wildChannelRef->getReference();
             $wildChannel->notifyMessageListeners($message);
             if ($wildChannelRef->isMarked()) {
                 $wildChannel->release();
             }
+        }
+    }
+
+    protected function notifyListener(ClientSessionChannel\MessageListener $listener, Message\Mutable $message) {
+        $channelRef = $this->getReleasableChannel($message->getChannel());
+        $channel = $channelRef->getReference();
+        $channel->notifyOnMessage($listener, $message);
+        if ($channelRef->isMarked()) {
+            $channel->release();
         }
     }
 
@@ -281,7 +276,6 @@ abstract class AbstractClientSession implements ClientSession
         return new MarkableReference($this->newChannel($this->newChannelId($id)), true);
     }
 
-    /* ------------------------------------------------------------ */
     public function dump($b, $indent)
     {
         $b .= $this->toString();

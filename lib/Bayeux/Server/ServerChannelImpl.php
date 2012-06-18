@@ -377,26 +377,32 @@ class ServerChannelImpl implements ServerChannel {
         $b .= '\n';
 
         $children = $this->_bayeux->getChannelChildren($this->_id);
-        $leaves = count($children) + count($this->_subscribers) + count($this->_listeners);
-        $i=0;
-        foreach ($children as $child)
-        {
+        $leaves = count($children) + count($this->_subscribers) + count($this->_listeners) + count($this->_authorizers);
+        $i = 0;
+        foreach ($children as $child) {
             $b .= $indent;
             $b .= " +-";
             $b .= $child->dump($b, $indent . ((++$i==$leaves)?"   ":" | "));
         }
-        foreach ($this->_subscribers as $child)
-        {
+
+        foreach ($this->_subscribers as $child) {
             $b .= $indent;
             $b .= " +-";
             $b .= $child->dump($b, $indent+((++$i==$leaves)?"   ":" | "));
         }
-        foreach ($this->_listeners as $child)
-        {
+
+        foreach ($this->_listeners as $child) {
             $b .= $indent;
             $b .= " +-";
             $b .= $child;
             $b .= '\n';
+        }
+
+        foreach ($this->_authorizers as $auth) {
+            $b .= $indent;
+            $b .= " +-";
+            $b .= $auth;
+            $b .= "\n";
         }
     }
 
